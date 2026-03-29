@@ -27,11 +27,11 @@ async function seedAdmin() {
     }
 
     // Check if admin user exists
-    const existingAdmin = await AdminUser.findOne({ email: 'admin@vtuapp.com' });
+    const existingAdmin = await AdminUser.findOne({ email: 'admin@connectavtu.com' });
     
     if (existingAdmin) {
       console.log('⚠️  Admin user already exists');
-      console.log('📧 Email: admin@vtuapp.com');
+      console.log('📧 Email: admin@connectavtu.com');
       console.log('🔑 If you forgot the password, delete the admin and run this script again');
       
       // Update password anyway
@@ -45,7 +45,7 @@ async function seedAdmin() {
       
       console.log('\n✅ Admin password reset successfully!');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📧 Email: admin@vtuapp.com');
+      console.log('📧 Email: admin@connectavtu.com');
       console.log('🔑 Password: Admin@123456');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     } else {
@@ -56,7 +56,7 @@ async function seedAdmin() {
       const password_hash = await bcrypt.hash(password, 10);
       
       const admin = await AdminUser.create({
-        email: 'admin@vtuapp.com',
+        email: 'admin@connectavtu.com',
         password_hash,
         first_name: 'Super',
         last_name: 'Admin',

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { Alert } from 'react-native';
 // import * as Network from "expo-network";
+import { paymentPointService } from './paymentpoint.service';
 import {
   AdminService,
   AdminUser,
@@ -16,12 +17,11 @@ import {
   User,
   Wallet
 } from './types';
-import { paymentPointService } from './paymentpoint.service';
 
 // Local development - use computer's IP for physical devices
-export const API_BASE_URL = 'http://10.129.222.112:8000/api'; // Local IP for Android
+//export const API_BASE_URL = 'http://10.129.222.112:8000/api'; // Local IP for Android
 // export const API_BASE_URL = 'http://localhost:8000/api'; // Local Backend
-// export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // Production
+export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // Production
 
 
 // Log the API URL being used
@@ -86,13 +86,13 @@ api.interceptors.response.use(
     // Handle network errors or request setup errors
     if (!error.response) {
       let errorMessage = error.message || 'Network error. Please check your internet connection.';
-      
+
       const url = error.config?.url || '';
-      
+
       // Specifically catch Vercel timeouts (504s without CORS headers) or Axios ECONNABORTED
       if (
-        errorMessage.includes('timeout') || 
-        errorMessage.toLowerCase().includes('network error') || 
+        errorMessage.includes('timeout') ||
+        errorMessage.toLowerCase().includes('network error') ||
         error.code === 'ECONNABORTED'
       ) {
         if (url.includes('/billpayment/')) {
