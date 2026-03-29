@@ -1,0 +1,25 @@
+# Node.js
+node_modules/
+dist/
+dist20/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.test
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+*_out.log
+*_test.log
+*.txt
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store

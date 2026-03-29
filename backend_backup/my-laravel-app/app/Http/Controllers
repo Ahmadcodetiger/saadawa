@@ -1,0 +1,19 @@
+The directory `/my-laravel-app/my-laravel-app/app/Http/Controllers` is intended to contain controller classes. Since you haven't specified a particular controller to create, I will provide a basic example of a controller file that you can use as a starting point.
+
+Here are the contents for a sample controller named `ExampleController.php`:
+
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class ExampleController extends Controller
+{
+    public function index()
+    {
+        return response()->json(['message' => 'Hello, World!']);
+    }
+}
+
+This file defines a simple controller with an `index` method that returns a JSON response. You can create additional methods in this controller to handle different routes as needed.
