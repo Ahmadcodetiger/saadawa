@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { Alert } from 'react-native';
 // import * as Network from "expo-network";
@@ -19,9 +20,9 @@ import {
 } from './types';
 
 // Local development - use computer's IP for physical devices
-//export const API_BASE_URL = 'http://10.129.222.112:8000/api'; // Local IP for Android
+export const API_BASE_URL = 'http://10.33.189.112:8000/api'; // Local IP for Android
 // export const API_BASE_URL = 'http://localhost:8000/api'; // Local Backend
-export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // Production
+//export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // Production
 
 
 // Log the API URL being used
@@ -29,7 +30,7 @@ console.log('🌐 API Base URL:', API_BASE_URL);
 // Create axios instance with better defaults
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -40,7 +41,7 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await SecureStore.getItemAsync('authToken');
 
       // Add auth header if token exists
       if (token) {
@@ -123,14 +124,9 @@ api.interceptors.response.use(
     if (status === 401) {
       // Clear auth data on 401
       try {
-        // Get current route before clearing storage
-        const currentRoute = window.location.pathname;
-        const isAuthPage = ['/login', '/register', '/forgot-password', '/auth/'].some(path =>
-          currentRoute.includes(path)
-        );
-
         // Clear auth data
-        await AsyncStorage.multiRemove(['authToken', 'user', 'walletData', 'transactions', 'profileData']);
+        await SecureStore.deleteItemAsync('authToken');
+        await AsyncStorage.multiRemove(['user', 'walletData', 'transactions', 'profileData']);
 
         // Clear API auth header
         if (api.defaults.headers.common['Authorization']) {
@@ -138,9 +134,7 @@ api.interceptors.response.use(
         }
 
         // Update error message for user
-        if (!isAuthPage) {
-          errorMessage = 'Your session has expired. Please log in again.';
-        }
+        errorMessage = 'Your session has expired. Please log in again.';
 
         // Note: Navigation should be handled by the app's auth state management
         // The app will automatically redirect to login when it detects no token
@@ -384,14 +378,11 @@ const transactionService = {
 
 // Notification Service
 const notificationService = {
-  getNotifications: () =>
-    api.get<ApiResponse<Array<{
-      id: string;
-      title: string;
-      message: string;
-      read: boolean;
-      created_at: string;
-    }>>>('/notifications'),
+  getNotifications: (params = {}) =>
+    api.get<ApiResponse<PaginatedResponse<any>>>(
+      '/notifications',
+      { params }
+    ),
 
   getNotification: (id: string) =>
     api.get<ApiResponse<{

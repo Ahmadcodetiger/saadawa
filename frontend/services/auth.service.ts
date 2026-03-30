@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import api from './api';
 
 export interface RegisterData {
@@ -50,7 +51,7 @@ export const authService = {
       
       // Save token and user data
       if (response.data.success && response.data.data.token) {
-        await AsyncStorage.setItem('authToken', response.data.data.token);
+        await SecureStore.setItemAsync('authToken', response.data.data.token);
         await AsyncStorage.setItem('user', JSON.stringify(response.data.data.user));
       }
       
@@ -71,7 +72,7 @@ export const authService = {
       
       // Save token and user data
       if (response.data.success && response.data.data.token) {
-        await AsyncStorage.setItem('authToken', response.data.data.token);
+        await SecureStore.setItemAsync('authToken', response.data.data.token);
         await AsyncStorage.setItem('user', JSON.stringify(response.data.data.user));
       }
       
@@ -140,7 +141,8 @@ export const authService = {
    */
   logout: async (): Promise<void> => {
     // Clear tokens and user data from storage
-    await AsyncStorage.multiRemove(['authToken', 'user']);
+    await SecureStore.deleteItemAsync('authToken');
+    await AsyncStorage.removeItem('user');
     
     // Clear any API authorization headers
     if (api.defaults.headers.common['Authorization']) {
@@ -167,7 +169,7 @@ export const authService = {
    * Check if user is authenticated
    */
   isAuthenticated: async (): Promise<boolean> => {
-    const token = await AsyncStorage.getItem('authToken');
+    const token = await SecureStore.getItemAsync('authToken');
     return !!token;
   },
 };

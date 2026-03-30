@@ -1,402 +1,128 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import {
-  Linking,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useColorScheme,
-  View
-} from 'react-native';
+import React from 'react';
+import { View, StyleSheet, Image, Linking, TouchableOpacity } from 'react-native';
+import { 
+  Globe, 
+  TwitterLogo, 
+  InstagramLogo, 
+  FacebookLogo, 
+  ShieldCheck, 
+  Info,
+  TextDivider
+} from 'phosphor-react-native';
 
-const theme = {
-  primary: '#0A2540',
-  accent: '#FF9F43',
-  success: '#00D4AA',
-  error: '#FF5B5B',
-  backgroundLight: '#F8F9FA',
-  backgroundDark: '#111921',
-  textHeadings: '#1E293B',
-  textBody: '#475569',
-};
+import { useAppTheme } from '../src/theme/ThemeContext';
+import { Text } from '../src/components/atoms/Text';
+import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
 
 export default function AboutScreen() {
-  const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const bgColor = isDark ? theme.backgroundDark : theme.backgroundLight;
-  const cardBgColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor = isDark ? '#FFFFFF' : theme.textHeadings;
-  const textBodyColor = isDark ? '#9CA3AF' : theme.textBody;
-  const borderColor = isDark ? '#374151' : '#E5E7EB';
-
-  const appInfo = {
-    version: '1.0.0',
-    buildNumber: '100',
-    releaseDate: 'march 2026',
-    developer: 'DevAhmad'
-  };
-
-  const legalLinks = [
-    {
-      title: 'Terms of Service',
-      description: 'Read our terms and conditions',
-      icon: 'document-text',
-      action: () => Linking.openURL('https://saadawadata.com.ng/terms')
-    },
-    {
-      title: 'Privacy Policy',
-      description: 'How we protect your privacy',
-      icon: 'shield-checkmark',
-      action: () => Linking.openURL('https://saadawadata.com.ng/privacy')
-    },
-    {
-      title: 'License Agreement',
-      description: 'Software license information',
-      icon: 'document',
-      action: () => Linking.openURL('https://saadawadata.com.ng/license')
-    }
-  ];
+  const { colors } = useAppTheme();
 
   const socialLinks = [
-    {
-      title: 'Follow us on Twitter',
-      icon: 'logo-twitter',
-      action: () => Linking.openURL('https://twitter.com/')
-    },
-    {
-      title: 'Like us on Facebook',
-      icon: 'logo-facebook',
-      action: () => Linking.openURL('https://facebook.com/')
-    },
-    {
-      title: 'Follow us on Instagram',
-      icon: 'logo-instagram',
-      action: () => Linking.openURL('https://instagram.com/')
-    },
-    {
-      title: 'Connect on LinkedIn',
-      icon: 'logo-linkedin',
-      action: () => Linking.openURL('https://linkedin.com/company/')
-    }
-  ];
-
-  const features = [
-    'Instant airtime and data purchases',
-    'Multiple payment methods',
-    'Secure transactions with bank-level encryption',
-    'Real-time transaction history',
-    'Bill payment services',
-    '24/7 customer support',
-    'Referral rewards program',
-    'Multi-network support'
+    { icon: Globe, url: 'https://saadawa.com' },
+    { icon: TwitterLogo, url: 'https://twitter.com/saadawa' },
+    { icon: InstagramLogo, url: 'https://instagram.com/saadawa' },
+    { icon: FacebookLogo, url: 'https://facebook.com/saadawa' },
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: bgColor, borderBottomColor: borderColor }]}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={textColor} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>About</Text>
-        <View style={styles.placeholder} />
+    <ScreenWrapper scroll>
+      <View style={styles.header}>
+        <Text variant="headingMedium" bold>About Saadawa</Text>
+        <Text variant="bodySmall" color="textSecondary">Version 2.1.0 (Stable)</Text>
       </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* App Logo and Info */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <View style={styles.appInfoContainer}>
-            <View style={styles.logoContainer}>
-              <View style={[styles.logo, { backgroundColor: theme.primary }]}>
-                <Text style={styles.logoText}>VTU</Text>
+      <View style={styles.logoSection}>
+          <View style={[styles.logoContainer, { backgroundColor: colors.primary }]}>
+            <Text variant="headingLarge" bold style={{ color: 'white' }}>S</Text>
+          </View>
+          <Text variant="headingSmall" bold style={{ marginTop: 16 }}>Saadawa VTU</Text>
+          <Text variant="caption" color="textSecondary">Fintech services, redefined.</Text>
+      </View>
+
+      <View style={styles.content}>
+          <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>OUR MISSION</Text>
+          <Text variant="bodyMedium" color="textPrimary" style={styles.missionText}>
+              Providing seamless, secure, and affordable financial and utility services to millions of Nigerians. Our goal is to bridge the gap between technology and accessibility in the fintech space.
+          </Text>
+
+          <Text variant="labelMedium" color="textSecondary" medium style={[styles.sectionTitle, { marginTop: 32 }]}>CONNECT WITH US</Text>
+          <View style={styles.socialGrid}>
+              {socialLinks.map((s, i) => (
+                  <TouchableOpacity key={i} style={[styles.socialBtn, { backgroundColor: colors.surface }]} onPress={() => Linking.openURL(s.url)}>
+                    <s.icon size={24} color={colors.primary} weight="duotone" />
+                  </TouchableOpacity>
+              ))}
+          </View>
+
+          <View style={[styles.legalCard, { backgroundColor: colors.primaryLight }]}>
+              <ShieldCheck size={28} color={colors.primary} weight="duotone" />
+              <View style={{ flex: 1, marginLeft: 16 }}>
+                  <Text variant="bodyMedium" bold color="primary">Protected & Verified</Text>
+                  <Text variant="caption" color="primary">Saadawa is a registered entity with CAC under RC: 1234567. We are PCI-DSS compliant.</Text>
               </View>
-            </View>
-            <Text style={[styles.appName, { color: textColor }]}>Saadawa Data</Text>
-            <Text style={[styles.appTagline, { color: textBodyColor }]}>
-              Your trusted partner for seamless mobile transactions
-            </Text>
-            <View style={styles.versionInfo}>
-              <Text style={[styles.versionText, { color: textBodyColor }]}>
-                Version {appInfo.version} (Build {appInfo.buildNumber})
-              </Text>
-              <Text style={[styles.versionText, { color: textBodyColor }]}>
-                Released {appInfo.releaseDate}
-              </Text>
-            </View>
           </View>
-        </View>
+      </View>
 
-        {/* About Description */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>About Saadawa Data App</Text>
-          <Text style={[styles.descriptionText, { color: textBodyColor }]}>
-            VTU App is Nigeria's leading mobile application for quick and secure virtual top-up services. 
-            We provide instant airtime, data bundles, and bill payment services across all major networks 
-            in Nigeria. Our mission is to make mobile transactions simple, fast, and secure for everyone.
-          </Text>
-        </View>
+      <View style={styles.footer}>
+          <Text variant="caption" color="textTertiary">© 2026 Saadawa Ltd. All rights reserved.</Text>
+      </View>
 
-        {/* Features */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Key Features</Text>
-          {features.map((feature, index) => (
-            <View key={index} style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color={theme.success} />
-              <Text style={[styles.featureText, { color: textBodyColor }]}>{feature}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Developer Info */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Developer Information</Text>
-          
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: textBodyColor }]}>Developed by:</Text>
-            <Text style={[styles.infoValue, { color: textColor }]}>{appInfo.developer}</Text>
-          </View>
-          
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: textBodyColor }]}>Contact:</Text>
-            <TouchableOpacity onPress={() => Linking.openURL('mailto:aminuamee@yahoo.com')}>
-              <Text style={[styles.infoValue, styles.linkText, { color: theme.primary }]}>
-                ahmadhussain554@yahoo.com
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: textBodyColor }]}>Website:</Text>
-            <TouchableOpacity onPress={() => Linking.openURL('https://www.icodearewa.org.ng')}>
-              <Text style={[styles.infoValue, styles.linkText, { color: theme.primary }]}>
-                www.icodearewa.org.ng
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Legal Information */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Legal</Text>
-          
-          {legalLinks.map((link, index) => (
-            <TouchableOpacity 
-              key={index}
-              style={styles.legalItem}
-              onPress={link.action}
-            >
-              <View style={styles.legalInfo}>
-                <Ionicons name={link.icon as any} size={24} color={theme.primary} />
-                <View style={styles.legalTextContainer}>
-                  <Text style={[styles.legalTitle, { color: textColor }]}>{link.title}</Text>
-                  <Text style={[styles.legalDescription, { color: textBodyColor }]}>
-                    {link.description}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={textBodyColor} />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Social Media */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Follow Us</Text>
-          
-          {socialLinks.map((social, index) => (
-            <TouchableOpacity 
-              key={index}
-              style={styles.socialItem}
-              onPress={social.action}
-            >
-              <Ionicons name={social.icon as any} size={24} color={theme.primary} />
-              <Text style={[styles.socialText, { color: textColor }]}>{social.title}</Text>
-              <Ionicons name="chevron-forward" size={20} color={textBodyColor} />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Copyright */}
-        <View style={styles.copyrightContainer}>
-          <Text style={[styles.copyrightText, { color: textBodyColor }]}>
-            © 2026 Saadawa Data. All rights reserved.
-          </Text>
-          <Text style={[styles.copyrightText, { color: textBodyColor }]}>
-            Made with ❤️ in Nigeria
-          </Text>
-        </View>
-
-        <View style={{ height: 50 }} />
-      </ScrollView>
-    </View>
+      <View style={{ height: 100 }} />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   header: {
-    flexDirection: 'row',
+    marginBottom: 24,
+    marginTop: 12,
+  },
+  logoSection: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  placeholder: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 20,
-  },
-  section: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-  appInfoContainer: {
-    alignItems: 'center',
+    paddingVertical: 32,
   },
   logoContainer: {
-    marginBottom: 16,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    alignItems: 'center',
+    width: 100,
+    height: 100,
+    borderRadius: 32,
     justifyContent: 'center',
-  },
-  logoText: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  appName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  appTagline: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  versionInfo: {
     alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
-  versionText: {
-    fontSize: 14,
-    marginBottom: 4,
+  content: {
+    paddingHorizontal: 4,
   },
-  descriptionText: {
-    fontSize: 16,
+  sectionTitle: {
+    marginBottom: 16,
+    letterSpacing: 1,
+  },
+  missionText: {
     lineHeight: 24,
   },
-  featureItem: {
+  socialGrid: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 32,
+  },
+  socialBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  legalCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    padding: 24,
+    borderRadius: 24,
   },
-  featureText: {
-    fontSize: 16,
-    marginLeft: 12,
-    flex: 1,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  footer: {
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  infoLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  infoValue: {
-    fontSize: 16,
-  },
-  linkText: {
-    textDecorationLine: 'underline',
-  },
-  legalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  legalInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  legalTextContainer: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  legalTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  legalDescription: {
-    fontSize: 14,
-  },
-  socialItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  socialText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 16,
-    flex: 1,
-  },
-  copyrightContainer: {
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 20,
-  },
-  copyrightText: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 4,
+    marginTop: 64,
   },
 });

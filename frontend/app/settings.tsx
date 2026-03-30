@@ -1,282 +1,169 @@
-import { useAlert } from '@/components/AlertContext';
-import { ThemeMode, useTheme } from '@/components/ThemeContext';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import React from 'react';
-import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { useAuth } from '@/context/AuthContext';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { 
+  Sun, 
+  Moon, 
+  DeviceMobile, 
+  Lock, 
+  Users, 
+  Bell, 
+  CheckCircle,
+  Gear,
+  Info
+} from 'phosphor-react-native';
 
-const theme = {
-  primary: '#0A2540',
-  accent: '#FF9F43',
-  success: '#00D4AA',
-  error: '#FF5B5B',
-  backgroundLight: '#F8F9FA',
-  backgroundDark: '#111921',
-  textHeadings: '#1E293B',
-  textBody: '#475569',
-};
+import { useAppTheme } from '../src/theme/ThemeContext';
+import { Text } from '../src/components/atoms/Text';
+import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
+import { SettingRow } from '../src/components/molecules/SettingRow';
+import { useAlert } from '@/components/AlertContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { themeMode, isDark, setThemeMode } = useTheme();
+  const { themeMode, isDark, setThemeMode, colors } = useAppTheme();
   const { showSuccess } = useAlert();
   const { user } = useAuth();
 
-  const bgColor = isDark ? theme.backgroundDark : theme.backgroundLight;
-  const cardBgColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor = isDark ? '#FFFFFF' : theme.textHeadings;
-  const textBodyColor = isDark ? '#9CA3AF' : theme.textBody;
-  const borderColor = isDark ? '#374151' : '#E5E7EB';
-
-  const themeOptions = [
-    {
-      id: 'light' as ThemeMode,
-      title: 'Light Mode',
-      description: 'Always use light theme',
-      icon: 'sunny'
-    },
-    {
-      id: 'dark' as ThemeMode,
-      title: 'Dark Mode',
-      description: 'Always use dark theme',
-      icon: 'moon'
-    },
-    {
-      id: 'system' as ThemeMode,
-      title: 'System Default',
-      description: 'Follow system theme setting',
-      icon: 'phone-portrait'
-    }
-  ];
-
-  const handleThemeChange = (mode: ThemeMode) => {
+  const handleThemeChange = (mode: 'light' | 'dark' | 'system') => {
     setThemeMode(mode);
-    showSuccess(`Theme changed to ${mode === 'system' ? 'system default' : mode + ' mode'}`);
+    showSuccess(`Theme updated to ${mode}`);
   };
 
-  const ThemeOption = ({ option }: { option: typeof themeOptions[0] }) => (
-    <TouchableOpacity
-      style={[
-        styles.themeOption,
-        themeMode === option.id && styles.selectedThemeOption,
-        { borderColor: themeMode === option.id ? theme.primary : borderColor }
-      ]}
-      onPress={() => handleThemeChange(option.id)}
-    >
-      <View style={styles.themeOptionContent}>
-        <View style={[
-          styles.themeIconContainer,
-          { backgroundColor: themeMode === option.id ? theme.primary : borderColor }
-        ]}>
-          <Ionicons
-            name={option.icon as any}
-            size={24}
-            color={themeMode === option.id ? '#FFFFFF' : textBodyColor}
-          />
-        </View>
-        <View style={styles.themeTextContainer}>
-          <Text style={[styles.themeTitle, { color: textColor }]}>{option.title}</Text>
-          <Text style={[styles.themeDescription, { color: textBodyColor }]}>
-            {option.description}
-          </Text>
-        </View>
-        {themeMode === option.id && (
-          <Ionicons name="checkmark-circle" size={24} color={theme.primary} />
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+  const isAdmin = user?.role === 'admin' || user?.role_id === 'admin';
+
+  const themeOptions = [
+    { id: 'light', title: 'Light', icon: Sun },
+    { id: 'dark', title: 'Dark', icon: Moon },
+    { id: 'system', title: 'System', icon: DeviceMobile },
+  ] as const;
 
   return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: bgColor, borderBottomColor: borderColor }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={textColor} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Settings</Text>
-        <View style={styles.placeholder} />
+    <ScreenWrapper scroll>
+      <View style={styles.header}>
+        <Text variant="headingMedium" bold>Settings</Text>
+        <Text variant="bodySmall" color="textSecondary">Customize your app experience</Text>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Theme Settings */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Appearance</Text>
-          <Text style={[styles.sectionDescription, { color: textBodyColor }]}>
-            Choose how the app looks on your device
-          </Text>
-
-          <View style={styles.themeOptionsContainer}>
-            {themeOptions.map((option) => (
-              <ThemeOption key={option.id} option={option} />
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>APPEARANCE</Text>
+        <View style={styles.themeGrid}>
+            {themeOptions.map((opt) => (
+                <TouchableOpacity 
+                    key={opt.id}
+                    style={[
+                        styles.themeCard, 
+                        { 
+                            backgroundColor: themeMode === opt.id ? colors.primary : colors.surface,
+                            borderColor: themeMode === opt.id ? colors.primary : colors.border
+                        }
+                    ]}
+                    onPress={() => handleThemeChange(opt.id)}
+                >
+                    <opt.icon size={24} color={themeMode === opt.id ? 'white' : colors.textPrimary} weight="duotone" />
+                    <Text variant="bodySmall" bold style={{ color: themeMode === opt.id ? 'white' : colors.textPrimary, marginTop: 8 }}>
+                        {opt.title}
+                    </Text>
+                    {themeMode === opt.id && (
+                        <View style={styles.check}>
+                            <CheckCircle size={16} color="white" weight="fill" />
+                        </View>
+                    )}
+                </TouchableOpacity>
             ))}
-          </View>
         </View>
+      </View>
 
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Security</Text>
-          <Text style={[styles.sectionDescription, { color: textBodyColor }]}>Manage your security settings</Text>
-
-          <TouchableOpacity
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 }}
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>ACCOUNT & SECURITY</Text>
+        <SettingRow 
+            label="Security & PIN"
+            description="Manage Password and Transaction PIN"
+            icon={ShieldCheck}
             onPress={() => router.push('/security')}
-            activeOpacity={0.7}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0A254020' : '#0A254015' }}>
-                <Ionicons name="lock-closed-outline" size={20} color={theme.primary} />
-              </View>
-              <View style={{ marginLeft: 12 }}>
-                <Text style={{ color: textColor, fontSize: 16, fontWeight: '600' }}>Transaction PIN</Text>
-                <Text style={{ color: textBodyColor, fontSize: 13 }}>Set or update your 4-digit PIN</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={textBodyColor} />
-          </TouchableOpacity>
-        </View>
+        />
+        <SettingRow 
+            label="Notifications"
+            description="Manage alerts and push notifications"
+            icon={Bell}
+            onPress={() => router.push('/notifications')}
+            hideBorder
+        />
+      </View>
 
-        {/* Admin Panel Section - Only visible to admins */}
-        {(user?.role === 'admin' || user?.role_id === 'admin') && (
-          <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-            <Text style={[styles.sectionTitle, { color: textColor }]}>Admin Panel</Text>
-            <Text style={[styles.sectionDescription, { color: textBodyColor }]}>Manage users and system settings</Text>
-
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 }}
-              onPress={() => router.push('/admin-users')}
-              activeOpacity={0.7}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0A254020' : '#0A254015' }}>
-                  <Ionicons name="people-outline" size={20} color={theme.primary} />
-                </View>
-                <View style={{ marginLeft: 12 }}>
-                  <Text style={{ color: textColor, fontSize: 16, fontWeight: '600' }}>Manage Users</Text>
-                  <Text style={{ color: textBodyColor, fontSize: 13 }}>View and manage user accounts</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={textBodyColor} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: isDark ? '#374151' : '#F3F4F6' }}
-              onPress={() => router.push('/admin-notifications')}
-              activeOpacity={0.7}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0A254020' : '#0A254015' }}>
-                  <Ionicons name="notifications-outline" size={20} color={theme.primary} />
-                </View>
-                <View style={{ marginLeft: 12 }}>
-                  <Text style={{ color: textColor, fontSize: 16, fontWeight: '600' }}>Push Notifications</Text>
-                  <Text style={{ color: textBodyColor, fontSize: 13 }}>Send broadcast messages</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={textBodyColor} />
-            </TouchableOpacity>
+      {isAdmin && (
+          <View style={styles.section}>
+            <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>ADMINISTRATION</Text>
+            <SettingRow 
+                label="User Management"
+                description="View and manage user accounts"
+                icon={Users}
+                onPress={() => router.push('/admin-users')}
+            />
+            <SettingRow 
+                label="Push Broadcast"
+                description="Send notifications to all users"
+                icon={Bell}
+                onPress={() => router.push('/admin-notifications')}
+                hideBorder
+            />
           </View>
-        )}
+      )}
 
-        <View style={{ height: 50 }} />
-      </ScrollView>
-    </View>
+      <View style={styles.section}>
+          <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>SUPPORT</Text>
+          <SettingRow 
+            label="Help & Support"
+            description="Get help or report an issue"
+            icon={Info}
+            onPress={() => router.push('/help-support')}
+          />
+          <SettingRow 
+            label="Legal & Terms"
+            description="Our policies and user agreement"
+            icon={ShieldCheck}
+            onPress={() => {}}
+            hideBorder
+          />
+      </View>
+
+      <View style={{ height: 100 }} />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  placeholder: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 20,
+    marginBottom: 24,
+    marginTop: 12,
   },
   section: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 12,
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 16,
+    marginLeft: 4,
+    letterSpacing: 1,
   },
-  sectionDescription: {
-    fontSize: 14,
-    marginBottom: 20,
-    lineHeight: 20,
-  },
-  themeOptionsContainer: {
+  themeGrid: {
+    flexDirection: 'row',
     gap: 12,
   },
-  themeOption: {
-    borderWidth: 2,
-    borderRadius: 12,
-    padding: 16,
-  },
-  selectedThemeOption: {
-    backgroundColor: 'rgba(10, 37, 64, 0.05)',
-  },
-  themeOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  themeIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  themeTextContainer: {
+  themeCard: {
     flex: 1,
+    height: 100,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
   },
-  themeTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  themeDescription: {
-    fontSize: 14,
+  check: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
   },
 });
+
+import { ShieldCheck } from 'phosphor-react-native';

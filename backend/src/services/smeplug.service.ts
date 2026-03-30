@@ -9,13 +9,6 @@ interface SMEPlugDataPurchase {
   customer_reference?: string;
 }
 
-interface SMEPlugAirtimePurchase {
-  network_id: number;
-  amount: number;
-  phone: string;
-  customer_reference?: string;
-}
-
 class SMEPlugService {
   private api: AxiosInstance | null = null;
 
@@ -47,10 +40,11 @@ class SMEPlugService {
     if (this.api) return this.api;
     const cfg = await ProviderConfig.findOne({ code: 'smeplug' });
     const baseURL = cfg?.base_url || 'https://smeplug.ng/api';
-    const apiKey = cfg?.api_key || (cfg?.metadata as any)?.env?.SMEPLUG_API_KEY || '';
+    // .env key takes priority — DB key is a manual override only when .env is absent
+    const apiKey = process.env.SMEPLUG_API_KEY || cfg?.api_key || '';
 
     if (!apiKey) {
-      throw new Error('SMEPlug API key not configured');
+      throw new Error('SMEPlug API key not configured. Please add SMEPLUG_API_KEY to your .env file.');
     }
 
     this.api = axios.create({
@@ -58,8 +52,9 @@ class SMEPlugService {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 15000,
     });
 
     return this.api;
@@ -121,27 +116,28 @@ class SMEPlugService {
     try {
       const api = await this.ensureClient();
 
-      // Map controller payload to SMEPlug payload
-      const payload: SMEPlugAirtimePurchase = {
+      // SMEPlug VTU Topup endpoint per official docs
+      const payload = {
         network_id: this.getNetworkId(data.network),
+        phone_number: data.phone,  // API uses phone_number, not phone
         amount: Number(data.amount),
-        phone: data.phone,
-        customer_reference: data.ref
       };
 
-      const res = await api.post('/v1/airtime/purchase', payload);
-      logger.info('SMEPlug airtime purchased', {
-        phone: payload.phone,
-        amount: payload.amount,
-        reference: res.data?.data?.reference
-      });
+      logger.info('SMEPlug VTU request:', { network_id: payload.network_id, phone: payload.phone_number, amount: payload.amount });
+      const res = await api.post('/v1/vtu', payload);
+      logger.info('SMEPlug VTU response:', res.data);
+
       return {
         status: 'success',
         ...res.data
       };
     } catch (error: any) {
+      const providerMsg = error.response?.data?.errors?.[0]
+        || error.response?.data?.message
+        || error.response?.data?.msg
+        || error.message;
       logger.error('SMEPlug purchaseAirtime error:', error.response?.data || error.message);
-      throw error;
+      throw new Error(`Airtime purchase failed: ${providerMsg}`);
     }
   }
 
@@ -173,8 +169,12 @@ class SMEPlugService {
         ...res.data
       };
     } catch (error: any) {
+      const providerMsg = error.response?.data?.errors?.[0] 
+        || error.response?.data?.message 
+        || error.response?.data?.msg 
+        || error.message;
       logger.error('SMEPlug purchaseData error:', error.response?.data || error.message);
-      throw error;
+      throw new Error(`Data purchase failed: ${providerMsg}`);
     }
   }
 
@@ -192,6 +192,11 @@ class SMEPlugService {
       logger.error('SMEPlug getTransactionStatus error:', error.response?.data || error.message);
       throw error;
     }
+  }
+
+  // Generate unique reference
+  generateReference(prefix: string): string {
+    return `${prefix}_${Date.now()}${Math.random().toString(36).substring(2, 11)}`;
   }
 }
 

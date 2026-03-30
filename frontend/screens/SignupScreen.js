@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { authService } from "../services/auth.service";
-import { useTheme } from "../components/ThemeContext";
+import { useTheme } from "@/src/theme/ThemeContext";
 
 const SignupScreen = () => {
   const [email, setEmail] = useState("");

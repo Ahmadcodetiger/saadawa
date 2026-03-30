@@ -1,9 +1,9 @@
 import { AlertProvider } from '@/components/AlertContext';
 import { ProfileProvider } from '@/components/ProfileContext';
-import { ThemeProvider } from '@/components/ThemeContext';
+import { ThemeProvider } from '@/src/theme/ThemeContext';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useFonts } from 'expo-font';
+import { useFonts, DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -79,6 +79,9 @@ export default function RootLayout() {
     'Poppins-Medium': require('../assets/fonts/Poppins-Medium.ttf'),
     'Poppins-SemiBold': require('../assets/fonts/Poppins-SemiBold.ttf'),
     'Poppins-Bold': require('../assets/fonts/Poppins-Bold.ttf'),
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_700Bold,
   });
 
   useEffect(() => {

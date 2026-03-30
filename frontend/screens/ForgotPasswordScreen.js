@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useTheme } from "../components/ThemeContext";
+import { useTheme } from "@/src/theme/ThemeContext";
 import CustomAlert from "../components/CustomAlert";
 import { authService } from "../services/auth.service";
 

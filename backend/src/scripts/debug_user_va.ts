@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { loadEnv } from '../config/env.js';
+import { loadEnv } from '../config/loadEnv.js';
 import { User } from '../models/user.model.js';
 import VirtualAccount from '../models/VirtualAccount.js';
 

@@ -1,944 +1,402 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Share, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import * as WebBrowser from 'expo-web-browser';
+import { 
+  PlusCircle, 
+  Copy, 
+  ShareNetwork, 
+  CheckCircle, 
+  Info, 
+  Lightning, 
+  Wallet, 
+  CreditCard 
+} from 'phosphor-react-native';
+
+import { useAppTheme } from '../src/theme/ThemeContext';
+import { Text } from '../src/components/atoms/Text';
+import { Button } from '../src/components/atoms/Button';
+import { Input } from '../src/components/atoms/Input';
+import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
 import { useAlert } from '@/components/AlertContext';
 import { authService } from '@/services/auth.service';
 import { paymentService } from '@/services/payment.service';
 import { paymentPointService } from '@/services/paymentpoint.service';
-import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
-import { useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Platform,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useColorScheme,
-  View
-} from 'react-native';
 
-// Constants
-const THEME = {
-  primary: '#0A2540',
-  accent: '#FF9F43',
-  success: '#00D4AA',
-  error: '#FF5B5B',
-  dark: {
-    background: '#000000',
-    card: '#1C1C1E',
-    text: '#FFFFFF',
-    textMuted: '#D1D5DB',
-    border: '#374151'
-  },
-  light: {
-    background: '#F9FAFB',
-    card: '#FFFFFF',
-    text: '#1F2937',
-    textMuted: '#6B7280',
-    border: '#E5E7EB'
-  }
-};
-
-// Types
-type PaymentMethod = {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-};
-
-type QuickAmount = {
-  amount: number;
-  label: string;
-};
+const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
 
 export default function AddMoneyScreen() {
-  // Hooks
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useAppTheme();
   const { showSuccess, showError, showInfo } = useAlert();
 
-  // State
   const [amount, setAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<string>('paymentpoint');
-  const [userName, setUserName] = useState('Loading...');
   const [isLoading, setIsLoading] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<any | null>(null);
   const [isLoadingVirtualAccount, setIsLoadingVirtualAccount] = useState(true);
   const [isCreatingVirtualAccount, setIsCreatingVirtualAccount] = useState(false);
 
-  // Theme colors
-  const theme = isDark ? THEME.dark : THEME.light;
-  const quickAmounts: QuickAmount[] = [
-    { amount: 1000, label: '₦1,000' },
-    { amount: 2000, label: '₦2,000' },
-    { amount: 5000, label: '₦5,000' },
-    { amount: 10000, label: '₦10,000' },
-    { amount: 20000, label: '₦20,000' },
-    { amount: 50000, label: '₦50,000' }
-  ];
-
-  const paymentMethods: PaymentMethod[] = [
-    {
-      id: 'virtual',
-      name: 'Virtual Account',
-      description: 'Your dedicated account number',
-      icon: 'wallet-outline',
-      color: '#06B6D4',
-    },
-    {
-      id: 'paymentpoint',
-      name: 'Saadawa Checkout',
-      description: 'Quick checkout (Recommended)',
-      icon: 'flash-outline',
-      color: '#10B981',
-    },
-    {
-      id: 'monnify',
-      name: 'Card/Bank Transfer',
-      description: 'Pay with card or bank',
-      icon: 'card-outline',
-      color: '#8B5CF6',
-    },
-  ];
-
-  // Load user data on mount
   useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const user = await authService.getCurrentUser();
-        if (user) {
-          const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim().toUpperCase();
-          setUserName(fullName || 'USER');
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      }
-    };
-
-    loadUserData();
     loadVirtualAccount();
   }, []);
 
   const loadVirtualAccount = useCallback(async () => {
     try {
       setIsLoadingVirtualAccount(true);
-      
       const response = await paymentPointService.getVirtualAccount();
-      console.log('📥 [AddMoney] Virtual account response:', response);
       
       if (!response || (typeof response === 'object' && 'exists' in response && !response.exists)) {
-        console.log('ℹ️ [AddMoney] No virtual account found - will show create button');
         setVirtualAccount(null);
-        setIsLoadingVirtualAccount(false);
         return;
       }
       
-      const responseData = (response as any)?.data?.data || response;
+      const responseData = (response as any)?.data?.data || (response as any)?.data || response;
       
-      if (responseData && (responseData.accountNumber || responseData.account_number)) {
-        const formattedAccount = formatVirtualAccount(responseData);
-        console.log('✅ [AddMoney] Virtual account loaded:', formattedAccount);
-        setVirtualAccount(formattedAccount);
+      if (responseData && (!('exists' in responseData) || responseData.exists !== false)) {
+        const accNo = responseData?.accountNumber || responseData?.account_number || responseData?.virtualAccountNo;
+        setVirtualAccount({
+          account_number: accNo || 'Processing...',
+          account_name: responseData?.accountName || responseData?.account_name || responseData?.customerName || 'Processing...',
+          bank_name: responseData?.bankName || responseData?.bank_name || 'PALMPAY',
+          status: responseData?.status || 'active',
+        });
       } else {
-        console.warn('⚠️ [AddMoney] Unexpected response format:', response);
         setVirtualAccount(null);
       }
-    } catch (error: any) {
-      console.error('❌ [AddMoney] Error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      setVirtualAccount(null);
-      showError('Failed to load virtual account. Please try again.');
+    } catch (error) {
+      console.error('Error loading virtual account:', error);
     } finally {
       setIsLoadingVirtualAccount(false);
     }
-  }, [showError]);
+  }, []);
 
-  // Format virtual account data
-  const formatVirtualAccount = (accountData: any) => {
-    // PaymentPoint response has camelCase fields
-    const bankName = accountData.bankName || accountData.bank_name || 'PALMPAY';
-    return {
-      account_number: accountData.accountNumber || accountData.account_number || accountData.virtualAccountNo,
-      account_name: accountData.accountName || accountData.account_name || accountData.customerName,
-      bank_name: bankName,
-      account_reference: accountData.customerId || accountData.reference || accountData.account_reference,
-      status: accountData.status || 'active',
-      provider: accountData.provider || 'paymentpoint',
-      customerName: accountData.accountName || accountData.customerName,
-    };
-  };
-
-  // Handle virtual account creation
   const handleCreateVirtualAccount = async () => {
     try {
       setIsCreatingVirtualAccount(true);
-      showInfo('Creating your virtual account. This may take a moment...');
-
       const user = await authService.getCurrentUser();
       if (!user) {
-        showError('Please login again to continue');
+        showError('Please login again');
         return;
       }
 
-      const accountReference = `${user._id}-${Date.now().toString(36)}`;
-      const accountData = {
+      await paymentPointService.createVirtualAccount({
         name: `${user.first_name} ${user.last_name}`,
         email: user.email,
         phoneNumber: user.phone_number,
-      };
+      });
 
-      console.log('📤 Creating virtual account with data:', accountData);
-
-      // Retry logic
-      let retryCount = 0;
-      const maxRetries = 2;
-      let lastError: any = null;
-
-      while (retryCount <= maxRetries) {
-        try {
-          const response = await paymentPointService.createVirtualAccount(accountData);
-          const formattedAccount = formatVirtualAccount(response);
-          
-          console.log('✅ Virtual account created:', formattedAccount);
-          setVirtualAccount(formattedAccount);
-          showSuccess('Virtual account created successfully!');
-          
-          // Reload virtual account after short delay to ensure backend is updated
-          setTimeout(() => {
-            loadVirtualAccount();
-          }, 2000);
-          
-          return;
-        } catch (error: any) {
-          lastError = error;
-          retryCount++;
-          
-          if (retryCount <= maxRetries) {
-            const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 10000);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-      }
-
-      throw lastError || new Error('Failed to create virtual account');
+      showSuccess('Virtual account generated!');
+      loadVirtualAccount();
     } catch (error: any) {
-      console.error('❌ Error creating virtual account:', error);
-      
-      let errorMessage = 'Failed to create virtual account';
-      if (error.message?.includes('network')) {
-        errorMessage = 'Network error. Please check your connection.';
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      showError(errorMessage);
+      showError(error.message || 'Failed to create account');
     } finally {
       setIsCreatingVirtualAccount(false);
     }
   };
 
-  // Handle payment
   const handleAddMoney = async () => {
-    if (!amount || !selectedMethod) {
-      showError('Please enter amount and select payment method');
-      return;
-    }
-
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      showError('Please enter a valid amount');
-      return;
-    }
-
-    if (amountNum < 100) {
+    const amountNum = parseFloat(amount.replace(/,/g, ''));
+    if (!amountNum || amountNum < 100) {
       showError('Minimum amount is ₦100');
       return;
     }
 
-    if (amountNum > 1000000) {
-      showError('Maximum amount is ₦1,000,000');
-      return;
-    }
-
     if (selectedMethod === 'virtual') {
-      showInfo('Transfer to the virtual account above to fund your wallet');
+      copyToClipboard(virtualAccount.account_number, 'Account number');
       return;
     }
 
     setIsLoading(true);
-
     try {
-      showInfo(`Initializing ${selectedMethod} payment...`);
-      
       const response = await paymentService.initiatePayment({
         amount: amountNum,
-        gateway: selectedMethod as "payrant" | "monnify" | "apystack" | "paymentpoint",
+        gateway: selectedMethod as any,
       });
 
       if (response.success) {
         const checkoutUrl = response.data.payment?.checkoutUrl;
-        const paymentReference = response.data.transaction?.reference;
-
-        if (!checkoutUrl) {
-          throw new Error('Invalid payment URL');
-        }
-
-        console.log(`💳 Opening ${selectedMethod} checkout:`, checkoutUrl);
-        const result = await WebBrowser.openBrowserAsync(checkoutUrl);
-
-        if (result.type === 'cancel' || result.type === 'dismiss') {
-          await verifyPaymentStatus(paymentReference);
+        if (checkoutUrl) {
+          await WebBrowser.openBrowserAsync(checkoutUrl);
         }
       }
     } catch (error: any) {
-      console.error('Payment error:', error);
-      showError(error.message || 'Payment failed. Please try again.');
+      showError(error.message || 'Payment failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Verify payment status
-  const verifyPaymentStatus = async (reference: string) => {
-    try {
-      showInfo('Verifying payment status...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const verifyResponse = await paymentService.verifyPayment(reference);
-      
-      if (verifyResponse.success && verifyResponse.data.status === 'paid') {
-        showSuccess('Payment successful! Your wallet has been credited.');
-        setTimeout(() => router.replace('/(tabs)'), 1500);
-      } else if (verifyResponse.data.status === 'pending') {
-        showInfo('Payment is being processed. We will notify you once confirmed.');
-        setTimeout(() => router.back(), 2000);
-      } else {
-        showError('Payment was not completed. Please try again.');
-      }
-    } catch (verifyError: any) {
-      console.error('Verification error:', verifyError);
-      showInfo('We are verifying your payment. Please check your wallet in a few moments.');
-    }
-  };
-
-  // Copy to clipboard
   const copyToClipboard = async (text: string, label: string) => {
-    try {
-      await Clipboard.setStringAsync(text);
-      showInfo(`${label} copied to clipboard`);
-    } catch (error) {
-      console.error('Failed to copy:', error);
-      showError('Failed to copy to clipboard');
-    }
+    await Clipboard.setStringAsync(text);
+    showSuccess(`${label} copied!`);
   };
 
-  // Share account details
-  const shareAccountDetails = async () => {
+  const shareDetails = async () => {
     if (!virtualAccount) return;
-    
-    const message = `My ${virtualAccount.bank_name} Account Details:\n\n` +
-                   `Account Number: ${virtualAccount.account_number}\n` +
-                   `Account Name: ${virtualAccount.account_name}\n` +
-                   `Bank: ${virtualAccount.bank_name || 'PALMPAY'}`;
-
-    try {
-      await Share.share({
-        message,
-        title: 'My Account Details'
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-      showError('Failed to share account details');
-    }
+    const message = `Payment Details:\nBank: ${virtualAccount.bank_name}\nAcc No: ${virtualAccount.account_number}\nName: ${virtualAccount.account_name}`;
+    await Share.share({ message });
   };
 
-  // Format amount with commas
-  const formatAmount = (value: string) => {
-    const num = value.replace(/\D/g, '');
-    return num.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  };
-
-  // Handle amount input
-  const handleAmountChange = (text: string) => {
-    const formatted = formatAmount(text);
-    setAmount(formatted);
-  };
-
-  // Render loading state
-  if (isLoadingVirtualAccount) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={THEME.accent} />
-        <Text style={[styles.loadingText, { color: theme.text }]}>
-          Loading your account information...
-        </Text>
-      </View>
-    );
-  }
+  const paymentMethods = [
+    { id: 'paymentpoint', name: 'Checkout', desc: 'Secure web checkout', icon: Lightning, color: colors.accent },
+    { id: 'monnify', name: 'Transfer/Card', desc: 'Bank transfer or card', icon: CreditCard, color: colors.secondary },
+    { id: 'virtual', name: 'Dedicated Account', desc: 'Auto-funding account', icon: Wallet, color: colors.primary },
+  ];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.card }]}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Add Money</Text>
-        <View style={styles.placeholder} />
+    <ScreenWrapper scroll>
+      <View style={styles.header}>
+        <Text variant="headingMedium" bold>Add Money</Text>
+        <Text variant="bodySmall" color="textSecondary">Choose how you want to fund your wallet</Text>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Virtual Account Section */}
+      {/* ATM Card Section */}
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>YOUR VIRTUAL ACCOUNT</Text>
         {isLoadingVirtualAccount ? (
-          <View style={[styles.loadingContainer, { backgroundColor: theme.card }]}>
-            <ActivityIndicator size="large" color={THEME.accent} />
-            <Text style={[styles.loadingText, { color: theme.text }]}>
-              Loading your account information...
-            </Text>
-          </View>
-        ) : virtualAccount?.account_number ? (
-          <View style={[styles.atmCard, { backgroundColor: THEME.primary }]}>
-            <View style={styles.atmCardHeader}>
-              <View style={styles.atmCardChip}>
-                <Ionicons name="card" size={28} color="#FFD700" />
-              </View>
-              <Text style={styles.atmCardBank}>
-                {virtualAccount.bank_name || 'PALMPAY'}
-              </Text>
+            <View style={[styles.cardPlaceholder, { backgroundColor: colors.surface }]}>
+                <ActivityIndicator color={colors.primary} />
             </View>
+        ) : virtualAccount ? (
+            <View style={[styles.atmCard, { backgroundColor: colors.primary }]}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.chip} />
+                    <Text variant="bodyMedium" bold style={{ color: 'white' }}>{virtualAccount.bank_name}</Text>
+                </View>
+                
+                <View style={styles.cardBody}>
+                    <Text variant="caption" style={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>ACCOUNT NUMBER</Text>
+                    <View style={styles.numberRow}>
+                        <Text variant="headingMedium" bold style={{ color: 'white', letterSpacing: 2 }}>
+                            {virtualAccount.account_number}
+                        </Text>
+                        <TouchableOpacity onPress={() => copyToClipboard(virtualAccount.account_number, 'Account Number')}>
+                            <Copy size={20} color="white" weight="bold" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
-            <View style={styles.atmAccountSection}>
-              <Text style={styles.atmLabel}>ACCOUNT NUMBER</Text>
-              <View style={styles.atmAccountNumberRow}>
-                <Text style={styles.atmAccountNumber}>
-                  {virtualAccount.account_number}
-                </Text>
-                <TouchableOpacity 
-                  style={styles.atmCopyButton}
-                  onPress={() => copyToClipboard(virtualAccount.account_number, 'Account number')}
-                >
-                  <Ionicons name="copy-outline" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
+                <View style={styles.cardFooter}>
+                    <View>
+                        <Text variant="caption" style={{ color: 'rgba(255,255,255,0.6)' }}>ACCOUNT NAME</Text>
+                        <Text variant="bodyMedium" bold style={{ color: 'white' }}>{virtualAccount.account_name}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.shareBtn} onPress={shareDetails}>
+                        <ShareNetwork size={18} color="white" weight="bold" />
+                    </TouchableOpacity>
+                </View>
             </View>
-
-            <View style={styles.atmBankSection}>
-              <Text style={styles.atmLabel}>ACCOUNT NAME</Text>
-              <Text style={styles.atmAccountName}>
-                {virtualAccount.account_name}
-              </Text>
-            </View>
-
-            <View style={styles.atmCardFooter}>
-              <View style={styles.atmStatusBadge}>
-                <Ionicons 
-                  name={virtualAccount.status === 'active' ? "checkmark-circle" : "alert-circle"} 
-                  size={14} 
-                  color={virtualAccount.status === 'active' ? "#00D4AA" : "#FF5B5B"} 
-                />
-                <Text style={[
-                  styles.atmStatusText,
-                  { color: virtualAccount.status === 'active' ? "#00D4AA" : "#FF5B5B" }
-                ]}>
-                  {virtualAccount.status ? virtualAccount.status.toUpperCase() : 'ACTIVE'}
-                </Text>
-              </View>
-
-              <TouchableOpacity 
-                style={styles.atmShareButton}
-                onPress={shareAccountDetails}
-              >
-                <Ionicons name="share-social" size={16} color="#FFFFFF" />
-                <Text style={styles.atmShareText}>Share</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
         ) : (
-          <View style={[styles.noAccountCard, { backgroundColor: theme.card }]}>
-            <Ionicons 
-              name="wallet-outline" 
-              size={64} 
-              color={theme.textMuted} 
-              style={styles.noAccountIcon}
-            />
-            <Text style={[styles.noAccountTitle, { color: theme.text }]}>
-              No Virtual Account
-            </Text>
-            <Text style={[styles.noAccountText, { color: theme.textMuted }]}>
-              Create a virtual account to receive instant deposits
-            </Text>
-            <TouchableOpacity
-              style={[styles.createAccountButton, { backgroundColor: THEME.accent }]}
-              onPress={handleCreateVirtualAccount}
-              disabled={isCreatingVirtualAccount}
+            <TouchableOpacity 
+                style={[styles.noAccount, { borderColor: colors.border, backgroundColor: colors.surface }]} 
+                onPress={handleCreateVirtualAccount}
+                disabled={isCreatingVirtualAccount}
             >
-              {isCreatingVirtualAccount ? (
-                <>
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                  <Text style={styles.createAccountButtonText}>Creating...</Text>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-                  <Text style={styles.createAccountButtonText}>Generate Virtual Account</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Amount Input */}
-        <View style={[styles.amountSection, { backgroundColor: theme.card }]}>
-          <Text style={[styles.amountLabel, { color: theme.text }]}>Enter Amount (₦)</Text>
-          <View style={styles.amountInputContainer}>
-            <Text style={[styles.currencySymbol, { color: theme.text }]}>₦</Text>
-            <TextInput
-              style={[styles.amountInput, { color: theme.text }]}
-              placeholder="0"
-              placeholderTextColor={theme.textMuted}
-              keyboardType="numeric"
-              value={amount}
-              onChangeText={handleAmountChange}
-              selectionColor={THEME.accent}
-            />
-          </View>
-
-          <View style={styles.quickAmounts}>
-            {quickAmounts.map((item) => (
-              <TouchableOpacity
-                key={item.amount}
-                style={[
-                  styles.quickAmountButton,
-                  { 
-                    backgroundColor: theme.background,
-                    borderColor: theme.border
-                  }
-                ]}
-                onPress={() => setAmount(item.amount.toString())}
-              >
-                <Text style={[styles.quickAmountText, { color: theme.text }]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Payment Methods */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Payment Method
-          </Text>
-          <View style={styles.paymentMethodsList}>
-            {paymentMethods.map((method) => (
-              <TouchableOpacity
-                key={method.id}
-                style={[
-                  styles.paymentMethodCard,
-                  {
-                    backgroundColor: theme.card,
-                    borderColor: selectedMethod === method.id ? method.color : theme.border,
-                  },
-                ]}
-                onPress={() => setSelectedMethod(method.id)}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.paymentMethodIcon,
-                    { backgroundColor: `${method.color}20` },
-                  ]}
-                >
-                  <Ionicons
-                    name={method.icon as any}
-                    size={24}
-                    color={method.color}
-                  />
-                </View>
-                <View style={styles.paymentMethodInfo}>
-                  <Text style={[styles.paymentMethodName, { color: theme.text }]}>
-                    {method.name}
-                  </Text>
-                  <Text style={[styles.paymentMethodDescription, { color: theme.textMuted }]}>
-                    {method.description}
-                  </Text>
-                </View>
-                {selectedMethod === method.id && (
-                  <View style={[styles.checkMark, { backgroundColor: method.color }]}>
-                    <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-                  </View>
+                {isCreatingVirtualAccount ? (
+                    <ActivityIndicator color={colors.primary} />
+                ) : (
+                    <>
+                        <PlusCircle size={32} color={colors.primary} weight="duotone" />
+                        <Text variant="bodyMedium" bold color="primary">Generate Dedicated Account</Text>
+                        <Text variant="caption" color="textSecondary" style={{ textAlign: 'center' }}>
+                            Receive instant deposits through your personal account number
+                        </Text>
+                    </>
                 )}
-              </TouchableOpacity>
+            </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Amount Section */}
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>ENTER AMOUNT</Text>
+        <Input 
+            label="Amount (₦)"
+            value={amount}
+            onChangeText={(v) => setAmount(v.replace(/\D/g, ''))}
+            keyboardType="numeric"
+            leftIcon={<Text variant="bodyLarge" bold style={{ marginRight: 8 }}>₦</Text>}
+        />
+        <View style={styles.quickGrid}>
+            {quickAmounts.map(amt => (
+                <TouchableOpacity 
+                    key={amt}
+                    style={[styles.amtChip, { backgroundColor: colors.surface, borderColor: amount === amt.toString() ? colors.primary : colors.border }]}
+                    onPress={() => setAmount(amt.toString())}
+                >
+                    <Text variant="bodySmall" bold color={amount === amt.toString() ? 'primary' : 'textPrimary'}>
+                        ₦{amt.toLocaleString()}
+                    </Text>
+                </TouchableOpacity>
             ))}
-          </View>
         </View>
+      </View>
 
-        {/* Add Money Button */}
-        <TouchableOpacity
-          style={[
-            styles.addMoneyButton,
-            { 
-              backgroundColor: THEME.accent,
-              opacity: (!amount || isLoading) ? 0.7 : 1
-            }
-          ]}
-          onPress={handleAddMoney}
-          disabled={!amount || isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.addMoneyButtonText}>
-              Add ₦{amount || '0.00'}
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        {/* Info Text */}
-        <View style={[styles.infoBox, { backgroundColor: `${THEME.accent}15` }]}>
-          <Ionicons 
-            name="information-circle" 
-            size={20} 
-            color={THEME.accent} 
-            style={styles.infoIcon}
-          />
-          <Text style={[styles.infoText, { color: theme.text }]}>
-            {selectedMethod === 'virtual' 
-              ? 'Transfer to your virtual account to fund your wallet instantly'
-              : 'Complete the payment to add money to your wallet'}
-          </Text>
+      {/* Payment Methods */}
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>FUNDING METHOD</Text>
+        <View style={styles.methodList}>
+            {paymentMethods.map(m => (
+                <TouchableOpacity 
+                    key={m.id}
+                    style={[
+                        styles.methodCard, 
+                        { 
+                            backgroundColor: colors.surface,
+                            borderColor: selectedMethod === m.id ? m.color : colors.border,
+                            borderWidth: selectedMethod === m.id ? 2 : 1
+                        }
+                    ]}
+                    onPress={() => setSelectedMethod(m.id)}
+                >
+                    <View style={[styles.methodIcon, { backgroundColor: `${m.color}15` }]}>
+                        <m.icon size={24} color={m.color} weight="duotone" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text variant="bodyMedium" bold>{m.name}</Text>
+                        <Text variant="caption" color="textSecondary">{m.desc}</Text>
+                    </View>
+                    {selectedMethod === m.id && (
+                        <CheckCircle size={20} color={m.color} weight="fill" />
+                    )}
+                </TouchableOpacity>
+            ))}
         </View>
-      </ScrollView>
-    </View>
+      </View>
+
+      <Button 
+        label={selectedMethod === 'virtual' ? 'Copy Account Number' : `Fund Wallet (₦${amount || '0'})`}
+        onPress={handleAddMoney}
+        loading={isLoading}
+        style={styles.actionBtn}
+        disabled={!amount && selectedMethod !== 'virtual'}
+      />
+
+      <View style={[styles.infoBox, { backgroundColor: colors.primaryLight }]}>
+         <Info size={20} color={colors.primary} weight="duotone" />
+         <Text variant="caption" color="primary" style={{ flex: 1 }}>
+            Funding via dedicated account is instant. Checkout methods may take up to 2 minutes to reflect.
+         </Text>
+      </View>
+
+      <View style={{ height: 100 }} />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
-  },
-  placeholder: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  // Virtual Account Card Styles
-  atmCard: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  atmCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 24,
+    marginTop: 12,
   },
-  atmCardChip: {
-    width: 40,
-    height: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  atmCardBank: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    opacity: 0.9,
-  },
-  atmAccountSection: {
-    marginBottom: 20,
-  },
-  atmLabel: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 12,
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  atmAccountNumberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  atmAccountNumber: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '600',
-    letterSpacing: 1,
-  },
-  atmBankSection: {
-    marginBottom: 24,
-  },
-  atmAccountName: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  atmCardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  atmStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-  },
-  atmStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  atmCopyButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginLeft: 12,
-  },
-  atmShareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  atmShareText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  // No Account Card
-  noAccountCard: {
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  noAccountIcon: {
-    marginBottom: 12,
-    opacity: 0.8,
-  },
-  noAccountTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 8,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  noAccountText: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 20,
-  },
-  createAccountButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    gap: 8,
-  },
-  createAccountButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  // Amount Section
-  amountSection: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-  },
-  amountLabel: {
-    fontSize: 14,
-    marginBottom: 12,
-    fontWeight: '500',
-  },
-  amountInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingBottom: 8,
-    marginBottom: 16,
-  },
-  currencySymbol: {
-    fontSize: 28,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  amountInput: {
-    flex: 1,
-    fontSize: 28,
-    fontWeight: '600',
-    padding: 0,
-    height: 40,
-  },
-  quickAmounts: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -4,
-    marginTop: 8,
-  },
-  quickAmountButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    margin: 4,
-  },
-  quickAmountText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  // Payment Methods
   section: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
     marginBottom: 12,
+    marginLeft: 4,
+    letterSpacing: 1,
   },
-  paymentMethodsList: {
-    gap: 12,
+  atmCard: {
+    padding: 24,
+    borderRadius: 24,
+    height: 200,
+    justifyContent: 'space-between',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
-  paymentMethodCard: {
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  chip: {
+    width: 40,
+    height: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 6,
+  },
+  cardBody: {
+    marginTop: 8,
+  },
+  numberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  shareBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardPlaceholder: {
+    height: 200,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noAccount: {
+    height: 200,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  amtChip: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
   },
-  paymentMethodIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
+  methodList: {
+    gap: 12,
+  },
+  methodCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
+    padding: 16,
+    borderRadius: 20,
+    gap: 16,
   },
-  paymentMethodInfo: {
-    flex: 1,
-  },
-  paymentMethodName: {
-    fontSize: 15,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  paymentMethodDescription: {
-    fontSize: 13,
-    opacity: 0.8,
-  },
-  checkMark: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  methodIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Add Money Button
-  addMoneyButton: {
-    height: 56,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 24,
+  actionBtn: {
+    marginTop: 12,
+    marginBottom: 20,
   },
-  addMoneyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Info Box
   infoBox: {
     flexDirection: 'row',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'flex-start',
-  },
-  infoIcon: {
-    marginRight: 12,
-    marginTop: 2,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  // Loading State
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    textAlign: 'center',
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
   },
 });

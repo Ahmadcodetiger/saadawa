@@ -21,7 +21,7 @@ export class UserController {
 
   static async updateProfile(req: AuthRequest, res: Response) {
     try {
-      const allowedUpdates = ['first_name', 'last_name', 'address', 'city', 'state', 'date_of_birth'];
+      const allowedUpdates = ['first_name', 'last_name', 'address', 'city', 'state', 'date_of_birth', 'profile_image'];
       const updates = Object.keys(req.body)
         .filter(key => allowedUpdates.includes(key))
         .reduce((obj: any, key) => {
@@ -89,6 +89,11 @@ export class UserController {
 
   static async getUserById(req: AuthRequest, res: Response) {
     try {
+      // IDOR Protection: Only allow user to see their own profile or admin to see any
+      if (req.user?.id !== req.params.id && req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+        return ApiResponse.error(res, 'Unauthorized access', 403);
+      }
+
       const user = await User.findById(req.params.id).select('-password_hash');
       if (!user) {
         return ApiResponse.error(res, 'User not found', 404);
@@ -102,6 +107,11 @@ export class UserController {
 
   static async updateUser(req: AuthRequest, res: Response) {
     try {
+      // IDOR Protection: Only allow user to update their own profile or admin
+      if (req.user?.id !== req.params.id && req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+        return ApiResponse.error(res, 'Unauthorized access', 403);
+      }
+
       const allowedUpdates = ['first_name', 'last_name', 'email', 'phone_number', 'status', 'kyc_status'];
       const updates = Object.keys(req.body)
         .filter(key => allowedUpdates.includes(key))
@@ -128,6 +138,10 @@ export class UserController {
 
   static async deleteUser(req: AuthRequest, res: Response) {
     try {
+      // IDOR Protection: Only allow super_admin to delete users
+      if (req.user?.role !== 'super_admin') {
+        return ApiResponse.error(res, 'Only super admins can delete users', 403);
+      }
       const user = await User.findByIdAndDelete(req.params.id);
       if (!user) {
         return ApiResponse.error(res, 'User not found', 404);

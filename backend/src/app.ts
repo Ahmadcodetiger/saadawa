@@ -1,6 +1,8 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { NextFunction, Request, Response } from "express";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 
 // Import routes with .js extension (required for Node16 module resolution)
 import adminRoutes from "./routes/admin.routes.js";
@@ -25,13 +27,37 @@ dotenv.config();
 
 const app = express();
 
-// CORS Configuration - Allow ALL origins
+// Security Headers
+app.use(helmet());
+
+// CORS Configuration - Restrict to trusted origins in production
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:19000', 'http://localhost:19006', 'http://localhost:8081'];
 app.use(cors({
-  origin: '*', // Allow all for local test
+  origin: process.env.NODE_ENV === 'production' ? allowedOrigins : '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-KEY', 'X-Requested-With'],
   credentials: true
 }));
+
+// Global Rate Limiting
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 100, // Limit each IP to 100 requests per windowMs
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later.' }
+});
+app.use('/api/', globalLimiter);
+
+// Stricter Rate Limiting for Auth routes
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 10, // Limit each IP to 10 login/register attempts per hour
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many authentication attempts, please try again in an hour.' }
+});
+app.use('/api/auth/', authLimiter);
 
 
 // Webhook routes need raw body parser
@@ -82,17 +108,6 @@ app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok", message: "Server is running" });
 });
 
-// Test TopUpMate service
-app.get("/api/test-topupmate", async (req: Request, res: Response) => {
-  try {
-    const { default: topupmateService } = await import("./services/topupmate.service.js");
-    const networks = await topupmateService.getNetworks();
-    res.json({ success: true, message: "TopUpMate service is working!", data: networks });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: "TopUpMate service error", error: error.message });
-  }
-});
-
 // ============================================
 // ERROR HANDLING
 // ============================================
@@ -116,11 +131,28 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Stack:', err.stack);
   console.error('\n');
 
+  // Check if it's an Axios error from a provider call
+  const axiosResponse = (err as any).response;
+  if (axiosResponse) {
+    const status = axiosResponse.status || 500;
+    const providerMsg = axiosResponse.data?.errors?.[0]
+      || axiosResponse.data?.message
+      || axiosResponse.data?.msg
+      || err.message;
+    return res.status(status).json({
+      success: false,
+      message: providerMsg,
+      error: `Request failed with status code ${status}`,
+    });
+  }
+
   res.status(500).json({
     success: false,
-    message: "Internal Server Error",
-    error: err.message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: 'Server error. Please try again later.',
+    ...(process.env.NODE_ENV === 'development' && { 
+      error: err.message,
+      stack: err.stack 
+    })
   });
 });
 

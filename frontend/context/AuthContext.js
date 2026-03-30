@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { authService } from '../services/auth.service';
 
 export const AuthContext = createContext();
@@ -14,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = await AsyncStorage.getItem('authToken');
+        const token = await SecureStore.getItemAsync('authToken');
         const authTimestamp = await AsyncStorage.getItem('authTimestamp');
         
         if (!token) {
@@ -89,7 +90,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid user data received');
       }
       
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await SecureStore.getItemAsync('authToken');
       if (!token) {
         throw new Error('Authentication failed: No token received');
       }

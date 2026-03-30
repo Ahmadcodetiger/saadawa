@@ -51,7 +51,7 @@ export class AuthController {
       await WalletService.createWallet(user._id);
       await OTPService.createOTP(phone_number, email, user._id.toString());
 
-      const token = jwt.sign({ id: user._id }, config.jwtSecret as string, { expiresIn: config.jwtExpiry } as SignOptions);
+      const token = jwt.sign({ id: user._id, role: 'user' }, config.jwtSecret as string, { expiresIn: config.jwtExpiry } as SignOptions);
 
       return ApiResponse.success(res, { user, token }, 'Registration successful', 201);
     } catch (error: any) {
@@ -82,7 +82,7 @@ export class AuthController {
         return ApiResponse.error(res, 'Account is inactive', 403);
       }
 
-      const token = jwt.sign({ id: user._id }, config.jwtSecret as string, { expiresIn: config.jwtExpiry } as SignOptions);
+      const token = jwt.sign({ id: user._id, role: 'user' }, config.jwtSecret as string, { expiresIn: config.jwtExpiry } as SignOptions);
 
       return ApiResponse.success(res, { user, token }, 'Login successful');
     } catch (error: any) {

@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useTheme } from "../components/ThemeContext";
+import { useTheme } from "@/src/theme/ThemeContext";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,

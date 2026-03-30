@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { transactionService, Transaction as ApiTransaction } from '@/services/transaction.service';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/components/ThemeContext';
+import { useTheme } from '@/src/theme/ThemeContext';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

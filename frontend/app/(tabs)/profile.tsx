@@ -1,38 +1,44 @@
-import { useProfile } from '@/components/ProfileContext';
-import { useTheme } from '@/components/ThemeContext';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
-import {
-  Image,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
-import { authService } from '@/services/auth.service';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Image, TouchableOpacity, RefreshControl, Switch, Alert } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { 
+  User, 
+  Lock, 
+  Bell, 
+  Question, 
+  Info, 
+  SignOut,
+  Moon,
+  CaretRight,
+  ShieldCheck,
+  Wallet
+} from 'phosphor-react-native';
+
+import { useAppTheme } from '../../src/theme/ThemeContext';
+import { Text } from '../../src/components/atoms/Text';
+import { ScreenWrapper } from '../../src/components/templates/ScreenWrapper';
+import { Badge, Divider } from '../../src/components/atoms/LayoutAtoms';
+
 import { userService } from '@/services/user.service';
 import { walletService } from '@/services/wallet.service';
+import { authService } from '@/services/auth.service';
 import { useAuth } from '@/context/AuthContext';
 
 export default function ProfileScreen() {
-  const { isDark } = useTheme();
   const router = useRouter();
-  const { profileData, getFullName } = useProfile();
+  const { colors, mode, setTheme } = useAppTheme();
+  const { logout } = useAuth();
+  
   const [user, setUser] = useState<any>(null);
   const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const { logout } = useAuth();
 
-  useEffect(() => {
-    loadAllData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadAllData();
+    }, [])
+  );
 
   const loadAllData = async () => {
     try {
@@ -41,8 +47,8 @@ export default function ProfileScreen() {
         loadUserProfile(),
         loadWalletData(),
       ]);
-    } catch (error: any) {
-      console.error('Error loading data:', error);
+    } catch (error) {
+      console.error('Error loading profile data:', error);
     } finally {
       setLoading(false);
     }
@@ -51,24 +57,18 @@ export default function ProfileScreen() {
   const loadUserProfile = async () => {
     try {
       const response = await userService.getProfile();
-      if (response.success) {
-        setUser(response.data);
-      }
-    } catch (error: any) {
-      console.error('Error loading profile:', error);
-      // Fallback to local storage
-      const userData = await authService.getCurrentUser();
-      setUser(userData);
+      if (response.success) setUser(response.data);
+    } catch (error) {
+       const userData = await authService.getCurrentUser();
+       setUser(userData);
     }
   };
 
   const loadWalletData = async () => {
     try {
       const response = await walletService.getWallet();
-      if (response.success) {
-        setWallet(response.data);
-      }
-    } catch (error: any) {
+      if (response.success) setWallet(response.data);
+    } catch (error) {
       console.error('Error loading wallet:', error);
     }
   };
@@ -79,300 +79,218 @@ export default function ProfileScreen() {
     setRefreshing(false);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     Alert.alert(
       'Logout',
-      'Are you sure you want to logout?',
+      'Are you sure you want to sign out?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Sign Out', 
           style: 'destructive',
           onPress: async () => {
             await logout();
             router.replace('/login');
-          },
+          }
         },
       ]
     );
-  }
-
-  const theme = {
-    primary: '#0A2540',
-    accent: '#FF9F43',
-    backgroundLight: '#F8F9FA',
-    backgroundDark: '#111921',
-    textHeadings: '#1E293B',
-    textBody: '#475569',
   };
 
-  const bgColor = isDark ? theme.backgroundDark : theme.backgroundLight;
-  const textColor = isDark ? '#FFFFFF' : theme.textHeadings;
-  const textBodyColor = isDark ? '#9CA3AF' : theme.textBody;
-  const cardBg = isDark ? '#1F2937' : '#F3F4F6';
-
-  const menuItems = [
-    { icon: 'person-outline', label: 'Personal Information', route: '/edit-profile' },
-    { icon: 'lock-closed-outline', label: 'Security', route: '/security' },
-    { icon: 'notifications-outline', label: 'Notifications', route: '/notifications-settings' },
-    { icon: 'help-circle-outline', label: 'Help & Support', route: '/help-support' },
-    { icon: 'information-circle-outline', label: 'About', route: '/about' },
-  ];
-
-  const handleMenuItemPress = (route: string) => {
-    if (route) {
-      router.push(route as any);
-    }
-  };
+  const MenuItem = ({ icon: Icon, label, onPress, rightContent }: any) => (
+    <TouchableOpacity 
+      style={[styles.menuItem, { backgroundColor: colors.surface }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.menuItemLeft}>
+        <View style={[styles.menuIcon, { backgroundColor: colors.primaryLight }]}>
+          <Icon size={22} color={colors.primary} weight="duotone" />
+        </View>
+        <Text variant="bodyMedium" medium>{label}</Text>
+      </View>
+      {rightContent || <CaretRight size={18} color={colors.textTertiary} weight="bold" />}
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: bgColor }]}>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Profile</Text>
-        <TouchableOpacity 
-          style={styles.settingsBtn}
-          onPress={() => router.push('/settings')}
-        >
-          <Ionicons name="settings-outline" size={24} color={textColor} />
-        </TouchableOpacity>
+    <ScreenWrapper
+      scroll
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+      }
+    >
+      <View style={styles.header}>
+        <Text variant="headingMedium" bold>Profile</Text>
       </View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={[styles.loadingText, { color: textBodyColor }]}>Loading...</Text>
-        </View>
-      ) : (
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={theme.primary}
-          />
-        }
-      >
-        {/* Profile Card */}
-        <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
-          <View style={styles.profilePic}>
+      <View style={[styles.profileCard, { backgroundColor: colors.primary }]}>
+        <View style={styles.profileInfo}>
             <Image
-              source={{ uri: profileData?.profileImage || user?.profile_image || 'https://via.placeholder.com/150' }}
-              style={styles.profileImage}
+                source={{ uri: user?.avatar || 'https://i.pravatar.cc/150?img=12' }}
+                style={styles.avatar}
             />
-          </View>
-          <Text style={[styles.profileName, { color: textColor }]}>
-            {profileData ? getFullName() : (user ? `${user.first_name} ${user.last_name}` : 'Loading...')}
-          </Text>
-          <Text style={[styles.profileEmail, { color: textBodyColor }]}>
-            {profileData?.email || user?.email || ''}
-          </Text>
-          {user?.phone_number && (
-            <Text style={[styles.profilePhone, { color: textBodyColor }]}>
-              {user.phone_number}
-            </Text>
-          )}
-          <TouchableOpacity 
-            style={[styles.editButton, { backgroundColor: theme.primary }]}
-            onPress={() => router.push('/edit-profile')}
-          >
-            <Text style={styles.editButtonText}>Edit Profile</Text>
-          </TouchableOpacity>
+            <View style={styles.profileText}>
+                <Text variant="headingSmall" color="textInverse" bold>{user?.first_name} {user?.last_name}</Text>
+                <Text variant="bodySmall" color="textInverse" style={{ opacity: 0.8 }}>{user?.email}</Text>
+                <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                    <Badge 
+                        label={user?.kyc_status?.toUpperCase() || 'LVL 1'} 
+                        variant="success" 
+                    />
+                </View>
+            </View>
         </View>
+      </View>
 
-        {/* Menu Items */}
-        <View style={styles.menuSection}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.menuItem, { backgroundColor: cardBg }]}
-              activeOpacity={0.7}
-              onPress={() => handleMenuItemPress(item.route)}
-            >
-              <View style={styles.menuItemLeft}>
-                <Ionicons name={item.icon as any} size={24} color={isDark ? '#FFFFFF' : theme.primary} />
-                <Text style={[styles.menuItemLabel, { color: textColor }]}>{item.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={textBodyColor} />
-            </TouchableOpacity>
-          ))}
-        </View>
+      <View style={styles.statsRow}>
+         <View style={[styles.statBox, { backgroundColor: colors.surface }]}>
+            <Wallet size={20} color={colors.primary} weight="duotone" />
+            <Text variant="bodySmall" color="textSecondary" style={{ marginTop: 4 }}>Balance</Text>
+            <Text variant="bodyLarge" bold>₦{wallet?.balance?.toLocaleString() || '0'}</Text>
+         </View>
+         <View style={[styles.statBox, { backgroundColor: colors.surface }]}>
+            <ShieldCheck size={20} color={colors.success} weight="duotone" />
+            <Text variant="bodySmall" color="textSecondary" style={{ marginTop: 4 }}>Security</Text>
+            <Text variant="bodyLarge" bold>Verified</Text>
+         </View>
+      </View>
 
-        {/* Logout Button */}
-        <TouchableOpacity 
-          style={[styles.logoutButton, { backgroundColor: '#EF4444' }]}
-          onPress={handleLogout}
-        >
-          <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+      <View style={styles.menuSection}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>ACCOUNT SETTINGS</Text>
+        <MenuItem 
+            icon={User} 
+            label="Personal Information" 
+            onPress={() => router.push('/edit-profile' as any)} 
+        />
+        <MenuItem 
+            icon={Lock} 
+            label="Security & PIN" 
+            onPress={() => router.push('/security' as any)} 
+        />
+        <MenuItem 
+            icon={Bell} 
+            label="Notifications" 
+            onPress={() => router.push('/notifications-settings' as any)} 
+        />
+      </View>
 
-        {/* Account Stats */}
-        <View style={[styles.statsCard, { backgroundColor: cardBg }]}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: textColor }]}>₦{wallet?.balance?.toLocaleString() || '0'}</Text>
-            <Text style={[styles.statLabel, { color: textBodyColor }]}>Wallet Balance</Text>
-          </View>
-          <View style={[styles.statDivider, { backgroundColor: textBodyColor }]} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: textColor }]}>{user?.kyc_status || 'Not Started'}</Text>
-            <Text style={[styles.statLabel, { color: textBodyColor }]}>KYC Status</Text>
-          </View>
-        </View>
+      <View style={styles.menuSection}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>PREFERENCES</Text>
+        <MenuItem 
+            icon={Moon} 
+            label="Dark Mode" 
+            rightContent={
+                <Switch 
+                    value={mode === 'dark'} 
+                    onValueChange={(val) => setTheme(val ? 'dark' : 'light')}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor="white"
+                />
+            }
+        />
+      </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
-      )}
-    </View>
+      <View style={styles.menuSection}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>SUPPORT</Text>
+        <MenuItem 
+            icon={Question} 
+            label="Help & Support" 
+            onPress={() => router.push('/help-support' as any)} 
+        />
+        <MenuItem 
+            icon={Info} 
+            label="About Saadawa" 
+            onPress={() => router.push('/about' as any)} 
+        />
+      </View>
+
+      <TouchableOpacity 
+        style={[styles.logoutBtn, { borderColor: colors.error }]} 
+        onPress={handleLogout}
+      >
+        <SignOut size={22} color={colors.error} weight="bold" />
+        <Text variant="bodyLarge" bold color="error">Sign Out</Text>
+      </TouchableOpacity>
+
+      <View style={{ height: 120 }} />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  settingsBtn: {
-    padding: 8,
+    marginBottom: 24,
+    marginTop: 12,
   },
   profileCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
     padding: 24,
-    borderRadius: 12,
+    borderRadius: 24,
+    marginBottom: 24,
+  },
+  profileInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  profilePic: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    overflow: 'hidden',
-    marginBottom: 16,
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.2)',
+    marginRight: 16,
   },
-  profileImage: {
-    width: '100%',
-    height: '100%',
+  profileText: {
+    flex: 1,
   },
-  profileName: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 4,
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 32,
   },
-  profileEmail: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  profilePhone: {
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  editButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  editButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+  statBox: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 20,
+    alignItems: 'center',
   },
   menuSection: {
-    paddingHorizontal: 16,
-    marginTop: 24,
-    gap: 12,
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    marginBottom: 12,
+    marginLeft: 4,
+    letterSpacing: 1,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 8,
+    padding: 12,
+    paddingRight: 16,
+    borderRadius: 16,
+    marginBottom: 8,
   },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
   },
-  menuItemLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  logoutButton: {
-    marginHorizontal: 16,
-    marginTop: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 8,
-    gap: 8,
-  },
-  logoutText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  statsCard: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    padding: 20,
-    borderRadius: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  statDivider: {
-    width: 1,
+  menuIcon: {
+    width: 40,
     height: 40,
-    opacity: 0.2,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+    marginTop: 8,
   },
 });

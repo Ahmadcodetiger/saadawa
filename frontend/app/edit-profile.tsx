@@ -1,55 +1,25 @@
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Image, ActionSheetIOS, Platform, Alert, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { Camera, User, Envelope, Phone, MapPin, City, HouseLine } from 'phosphor-react-native';
+
+import { useAppTheme } from '../src/theme/ThemeContext';
+import { Text } from '../src/components/atoms/Text';
+import { Button } from '../src/components/atoms/Button';
+import { Input } from '../src/components/atoms/Input';
+import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
 import { useAlert } from '@/components/AlertContext';
 import { useProfile } from '@/components/ProfileContext';
-import { useTheme } from '@/components/ThemeContext';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
 import { userService } from '@/services/user.service';
-import { authService } from '@/services/auth.service';
-import {
-    ActionSheetIOS,
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useColorScheme,
-    View,
-} from 'react-native';
-
-const theme = {
-  primary: '#0A2540',
-  accent: '#FF9F43',
-  success: '#00D4AA',
-  error: '#FF5B5B',
-  backgroundLight: '#F8F9FA',
-  backgroundDark: '#111921',
-  textHeadings: '#1E293B',
-  textBody: '#475569',
-};
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const { isDark } = useTheme();
+  const { colors } = useAppTheme();
   const { showSuccess, showError } = useAlert();
   const { profileData, updateProfile } = useProfile();
-  const [userData, setUserData] = useState<any>(null);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  const bgColor = isDark ? theme.backgroundDark : theme.backgroundLight;
-  const cardBgColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor = isDark ? '#FFFFFF' : theme.textHeadings;
-  const textBodyColor = isDark ? '#9CA3AF' : theme.textBody;
-  const borderColor = isDark ? '#374151' : '#E5E7EB';
-  const inputBgColor = isDark ? '#374151' : '#F9FAFB';
-
-  // Form state
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -57,21 +27,11 @@ export default function EditProfileScreen() {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
+  
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [profileImage, setProfileImage] = useState(profileData.profileImage);
   const [isImageLoading, setIsImageLoading] = useState(false);
-
-  // Keep track of original values for reset functionality
-  const [originalData, setOriginalData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phoneNumber: '',
-    address: '',
-    city: '',
-    state: '',
-    profileImage: profileData.profileImage,
-  });
 
   useEffect(() => {
     loadUserProfile();
@@ -83,7 +43,6 @@ export default function EditProfileScreen() {
       const response = await userService.getProfile();
       if (response.success) {
         const user = response.data;
-        setUserData(user);
         setFirstName(user.first_name || '');
         setLastName(user.last_name || '');
         setEmail(user.email || '');
@@ -91,570 +50,232 @@ export default function EditProfileScreen() {
         setAddress(user.address || '');
         setCity(user.city || '');
         setState(user.state || '');
-        
-        // Set original data for reset
-        setOriginalData({
-          firstName: user.first_name || '',
-          lastName: user.last_name || '',
-          email: user.email || '',
-          phoneNumber: user.phone_number || '',
-          address: user.address || '',
-          city: user.city || '',
-          state: user.state || '',
-          profileImage: profileData.profileImage,
-        });
+        // Load profile image from server if available
+        if (user.profile_image) {
+          setProfileImage(user.profile_image);
+        }
       }
-    } catch (error: any) {
-      console.error('Error loading profile:', error);
-      showError('Failed to load profile data');
-      // Fallback to local storage
-      const localUser = await authService.getCurrentUser();
-      if (localUser) {
-        setFirstName(localUser.first_name || '');
-        setLastName(localUser.last_name || '');
-        setEmail(localUser.email || '');
-        setPhoneNumber(localUser.phone_number || '');
-      }
+    } catch (e) {
+      console.error('Failed to load profile', e);
     } finally {
       setIsInitialLoading(false);
     }
   };
 
-  // Check if form has changes
-  const hasChanges = 
-    firstName !== originalData.firstName ||
-    lastName !== originalData.lastName ||
-    email !== originalData.email ||
-    phoneNumber !== originalData.phoneNumber ||
-    address !== originalData.address ||
-    city !== originalData.city ||
-    state !== originalData.state ||
-    profileImage !== originalData.profileImage;
-
-  // Safety timeout to reset loading state
-  React.useEffect(() => {
-    if (isImageLoading) {
-      const timeout = setTimeout(() => {
-        setIsImageLoading(false);
-      }, 10000); // 10 second timeout
-
-      return () => clearTimeout(timeout);
-    }
-  }, [isImageLoading]);
-
-  // Request permissions and pick image
-  const requestPermissions = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission Required',
-        'Please grant camera roll permissions to change your profile picture.',
-        [{ text: 'OK' }]
-      );
-      return false;
-    }
-    return true;
-  };
-
-  const pickImageFromGallery = async () => {
-    try {
-      const hasPermission = await requestPermissions();
-      if (!hasPermission) {
-        setIsImageLoading(false); // Reset loading state if permission denied
-        return;
-      }
-
-      setIsImageLoading(true);
-      
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setProfileImage(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error('Error picking image from gallery:', error);
-      Alert.alert('Error', 'Failed to select image. Please try again.');
-    } finally {
-      setIsImageLoading(false);
-    }
-  };
-
-  const takePhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please grant camera permissions to take a photo.',
-          [{ text: 'OK' }]
-        );
-        setIsImageLoading(false); // Reset loading state if permission denied
-        return;
-      }
-
-      setIsImageLoading(true);
-
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setProfileImage(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
-    } finally {
-      setIsImageLoading(false);
-    }
-  };
-
-  const showImagePickerOptions = () => {
-    // Don't show options if already loading
-    if (isImageLoading) return;
-
+  const handleImagePick = async () => {
+    const options = ['Cancel', 'Take Photo', 'Choose from Gallery'];
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Take Photo', 'Choose from Gallery'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            takePhoto();
-          } else if (buttonIndex === 2) {
-            pickImageFromGallery();
-          }
+        { options, cancelButtonIndex: 0 },
+        (idx) => {
+          if (idx === 1) launchCamera();
+          else if (idx === 2) launchLibrary();
         }
       );
     } else {
-      Alert.alert(
-        'Select Profile Picture',
-        'Choose an option',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Take Photo', onPress: takePhoto },
-          { text: 'Choose from Gallery', onPress: pickImageFromGallery },
-        ]
-      );
+      Alert.alert('Change Picture', 'Select source', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Camera', onPress: launchCamera },
+        { text: 'Gallery', onPress: launchLibrary },
+      ]);
     }
   };
 
-  // Debug function to force reset loading state
-  const forceResetLoadingState = () => {
-    setIsImageLoading(false);
-    console.log('Image loading state forcefully reset');
+  const launchCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') return;
+    const res = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1,1], quality: 0.7 });
+    if (!res.canceled) setProfileImage(res.assets[0].uri);
   };
 
-  // Reset form to original values
-  const resetForm = () => {
-    setFirstName(originalData.firstName);
-    setLastName(originalData.lastName);
-    setEmail(originalData.email);
-    setPhoneNumber(originalData.phoneNumber);
-    setAddress(originalData.address);
-    setCity(originalData.city);
-    setState(originalData.state);
-    setProfileImage(originalData.profileImage);
-    showSuccess('Form reset to original values');
+  const launchLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+    const res = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1,1], quality: 0.7 });
+    if (!res.canceled) setProfileImage(res.assets[0].uri);
   };
 
-  const handleSaveProfile = async () => {
-    // Validation
-    if (!firstName.trim()) {
-      showError('First name is required');
-      return;
+  const handleSave = async () => {
+    if (!firstName || !lastName) {
+      showError('Name fields are required'); return;
     }
-    if (!lastName.trim()) {
-      showError('Last name is required');
-      return;
-    }
-    if (!email.trim()) {
-      showError('Email address is required');
-      return;
-    }
-    
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      showError('Please enter a valid email address');
-      return;
-    }
-
     setIsLoading(true);
-
     try {
-      // Create updated profile data for API
       const updateData = {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         address: address.trim(),
         city: city.trim(),
         state: state.trim(),
+        profile_image: profileImage, // send image URL to backend
       };
-
-      // Call API to update profile
-      const response = await userService.updateProfile(updateData);
       
-      if (response.success) {
-        // Update the global profile context
-        updateProfile({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim(),
-          phoneNumber,
-          address,
-          city,
-          state,
-          profileImage: profileImage
-        });
-        
-        // Show success message
-        showSuccess('Profile updated successfully!');
-        
-        // Navigate back after a short delay to show the success message
-        setTimeout(() => {
-          router.back();
-        }, 1000);
+      const res = await userService.updateProfile(updateData);
+      if (res.success) {
+        updateProfile({ ...profileData, firstName, lastName, address, city, state, profileImage });
+        // Update cached user data in AsyncStorage so dashboard avatar refreshes
+        try {
+          const cached = await AsyncStorage.getItem('userData');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            parsed.profile_image = profileImage;
+            parsed.first_name = firstName.trim();
+            parsed.last_name = lastName.trim();
+            await AsyncStorage.setItem('userData', JSON.stringify(parsed));
+          }
+        } catch (_) {}
+        showSuccess('Profile updated!');
+        setTimeout(() => router.back(), 1500);
       } else {
-        showError(response.message || 'Failed to update profile');
+        showError(res.message || 'Update failed');
       }
-      
-    } catch (error: any) {
-      console.error('Error updating profile:', error);
-      showError(error.message || 'Failed to update profile. Please try again.');
+    } catch (e: any) {
+      showError(e.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isInitialLoading) {
-    return (
-      <View style={[styles.container, { backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }]}>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-        <Ionicons name="refresh" size={32} color={textBodyColor} />
-        <Text style={[{ color: textBodyColor, marginTop: 12, fontSize: 16 }]}>Loading...</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: bgColor, borderBottomColor: borderColor }]}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={textColor} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Edit Profile</Text>
-        <View style={styles.placeholder} />
+    <ScreenWrapper scroll>
+      <View style={styles.header}>
+        <Text variant="headingMedium" bold>Edit Profile</Text>
+        <Text variant="bodySmall" color="textSecondary">Update your personal information</Text>
       </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Profile Picture Section */}
-        <View style={[styles.profileSection, { backgroundColor: cardBgColor }]}>
-          <View style={styles.profilePicContainer}>
-            <View style={styles.profilePic}>
-              <Image
-                source={{ uri: profileImage }}
-                style={styles.profileImage}
-              />
-              {isImageLoading && (
-                <View style={[styles.imageLoadingOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-                  <Ionicons name="refresh" size={24} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontSize: 12, marginTop: 4 }}>Loading...</Text>
-                </View>
-              )}
-            </View>
-            <TouchableOpacity 
-              style={[styles.editPicButton, { 
-                backgroundColor: theme.primary,
-                opacity: isImageLoading ? 0.7 : 1 
-              }]}
-              onPress={showImagePickerOptions}
-              disabled={isImageLoading}
-            >
-              <Ionicons name="camera" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity 
-            style={[styles.changePictureButton, { opacity: isImageLoading ? 0.7 : 1 }]}
-            onPress={showImagePickerOptions}
-            onLongPress={forceResetLoadingState}
-            disabled={isImageLoading}
-          >
-            <Text style={[styles.changePictureText, { color: theme.primary }]}>
-              {isImageLoading ? 'Loading...' : 'Change Picture'}
-            </Text>
+      <View style={styles.avatarSection}>
+        <View style={[styles.avatarContainer, { borderColor: colors.primary }]}>
+          <Image source={{ uri: profileImage }} style={styles.avatar} />
+          <TouchableOpacity style={[styles.editIcon, { backgroundColor: colors.primary }]} onPress={handleImagePick}>
+            <Camera size={18} color="white" weight="bold" />
           </TouchableOpacity>
         </View>
+        <TouchableOpacity onPress={handleImagePick}>
+          <Text variant="bodyMedium" bold color="primary" style={{ marginTop: 12 }}>Change Picture</Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Form Section */}
-        <View style={[styles.formSection, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Personal Information</Text>
-          
-          <View style={styles.inputRow}>
-            <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-              <Text style={[styles.inputLabel, { color: textBodyColor }]}>First Name *</Text>
-              <TextInput
-                style={[styles.textInput, { 
-                  backgroundColor: inputBgColor, 
-                  borderColor: borderColor,
-                  color: textColor 
-                }]}
+      <View style={styles.form}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>PERSONAL DETAILS</Text>
+        <View style={styles.grid}>
+          <View style={{ flex: 1 }}>
+            <Input 
+                label="First Name"
                 value={firstName}
                 onChangeText={setFirstName}
-                placeholder="Enter first name"
-                placeholderTextColor={textBodyColor}
-              />
-            </View>
-            <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-              <Text style={[styles.inputLabel, { color: textBodyColor }]}>Last Name *</Text>
-              <TextInput
-                style={[styles.textInput, { 
-                  backgroundColor: inputBgColor, 
-                  borderColor: borderColor,
-                  color: textColor 
-                }]}
+                leftIcon={<User size={18} color={colors.textTertiary} />}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Input 
+                label="Last Name"
                 value={lastName}
                 onChangeText={setLastName}
-                placeholder="Enter last name"
-                placeholderTextColor={textBodyColor}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: textBodyColor }]}>Email Address *</Text>
-            <TextInput
-              style={[styles.textInput, { 
-                backgroundColor: inputBgColor, 
-                borderColor: borderColor,
-                color: textColor 
-              }]}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter email address"
-              placeholderTextColor={textBodyColor}
-              keyboardType="email-address"
-              autoCapitalize="none"
             />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: textBodyColor }]}>Phone Number</Text>
-            <TextInput
-              style={[styles.textInput, { 
-                backgroundColor: inputBgColor, 
-                borderColor: borderColor,
-                color: textColor 
-              }]}
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              placeholder="Enter phone number"
-              placeholderTextColor={textBodyColor}
-              keyboardType="phone-pad"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: textBodyColor }]}>Address</Text>
-            <TextInput
-              style={[styles.textInput, { 
-                backgroundColor: inputBgColor, 
-                borderColor: borderColor,
-                color: textColor 
-              }]}
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Enter address"
-              placeholderTextColor={textBodyColor}
-            />
-          </View>
-
-          <View style={styles.inputRow}>
-            <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-              <Text style={[styles.inputLabel, { color: textBodyColor }]}>City</Text>
-              <TextInput
-                style={[styles.textInput, { 
-                  backgroundColor: inputBgColor, 
-                  borderColor: borderColor,
-                  color: textColor 
-                }]}
-                value={city}
-                onChangeText={setCity}
-                placeholder="Enter city"
-                placeholderTextColor={textBodyColor}
-              />
-            </View>
-            <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-              <Text style={[styles.inputLabel, { color: textBodyColor }]}>State</Text>
-              <TextInput
-                style={[styles.textInput, { 
-                  backgroundColor: inputBgColor, 
-                  borderColor: borderColor,
-                  color: textColor 
-                }]}
-                value={state}
-                onChangeText={setState}
-                placeholder="Enter state"
-                placeholderTextColor={textBodyColor}
-              />
-            </View>
           </View>
         </View>
 
-        {/* Save Button */}
-        <TouchableOpacity 
-          style={[styles.saveButton, { 
-            backgroundColor: theme.primary,
-            opacity: isLoading ? 0.7 : 1 
-          }]}
-          onPress={handleSaveProfile}
-          disabled={isLoading}
-        >
-          <Text style={styles.saveButtonText}>
-            {isLoading ? 'Saving...' : 'Save Changes'}
-          </Text>
-        </TouchableOpacity>
+        <Input 
+            label="Email Address"
+            value={email}
+            editable={false}
+            leftIcon={<Envelope size={18} color={colors.textTertiary} />}
+        />
 
-        <View style={{ height: 50 }} />
-      </ScrollView>
-    </View>
+        <Input 
+            label="Phone Number"
+            value={phoneNumber}
+            editable={false}
+            leftIcon={<Phone size={18} color={colors.textTertiary} />}
+        />
+
+        <Text variant="labelMedium" color="textSecondary" medium style={[styles.sectionTitle, { marginTop: 16 }]}>ADDRESS</Text>
+        <Input 
+            label="Street Address"
+            value={address}
+            onChangeText={setAddress}
+            leftIcon={<HouseLine size={18} color={colors.textTertiary} />}
+        />
+
+        <View style={styles.grid}>
+          <View style={{ flex: 1 }}>
+            <Input 
+                label="City"
+                value={city}
+                onChangeText={setCity}
+                leftIcon={<City size={18} color={colors.textTertiary} />}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Input 
+                label="State"
+                value={state}
+                onChangeText={setState}
+                leftIcon={<MapPin size={18} color={colors.textTertiary} />}
+            />
+          </View>
+        </View>
+      </View>
+
+      <Button 
+        label="Save Changes"
+        onPress={handleSave}
+        loading={isLoading}
+        style={styles.saveBtn}
+      />
+
+      <View style={{ height: 100 }} />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   header: {
-    flexDirection: 'row',
+    marginBottom: 24,
+    marginTop: 12,
+  },
+  avatarSection: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-    borderBottomWidth: 1,
+    marginBottom: 32,
   },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  placeholder: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 20,
-  },
-  profileSection: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    padding: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  profilePicContainer: {
+  avatarContainer: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 2,
+    padding: 3,
     position: 'relative',
-    marginBottom: 16,
   },
-  profilePic: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    overflow: 'hidden',
-  },
-  profileImage: {
+  avatar: {
     width: '100%',
     height: '100%',
-  },
-  imageLoadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: 50,
   },
-  editPicButton: {
+  editIcon: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
+    bottom: 2,
+    right: 2,
     width: 32,
     height: 32,
     borderRadius: 16,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
   },
-  changePictureButton: {
-    paddingVertical: 8,
-  },
-  changePictureText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  formSection: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 12,
+  form: {
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 20,
-  },
-  inputContainer: {
     marginBottom: 16,
+    marginLeft: 4,
+    letterSpacing: 1,
   },
-  inputRow: {
+  grid: {
     flexDirection: 'row',
+    gap: 16,
   },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  saveButton: {
-    marginHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+  saveBtn: {
+    marginTop: 12,
   },
 });

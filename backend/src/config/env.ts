@@ -75,16 +75,16 @@ export const config: Config = {
   
   // Paystack Configuration
   paystack: {
-    secretKey: process.env.PAYSTACK_SECRET_KEY || '111111111111111111111111',
-    publicKey: process.env.PAYSTACK_PUBLIC_KEY || '111111111111111111111111',
+    secretKey: process.env.PAYSTACK_SECRET_KEY || '',
+    publicKey: process.env.PAYSTACK_PUBLIC_KEY || '',
     baseUrl: 'https://api.paystack.co',
     webhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || '',
   },
   
   // Monnify Configuration (if needed)
   monnify: {
-    apiKey: process.env.MONNIFY_API_KEY || '111111111111111111111111',
-    secretKey: process.env.MONNIFY_SECRET_KEY || '111111111111111111111111',
+    apiKey: process.env.MONNIFY_API_KEY || '',
+    secretKey: process.env.MONNIFY_SECRET_KEY || '',
     contractCode: process.env.MONNIFY_CONTRACT_CODE || '',
     baseUrl: process.env.MONNIFY_BASE_URL || 'https://api.monnify.com/api/v1',
   },

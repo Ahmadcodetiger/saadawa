@@ -7,16 +7,17 @@ class VTpassService {
     if (this.api) return this.api;
     const cfg = await ProviderConfig.findOne({ code: 'vtpass' });
     const baseURL = cfg?.base_url || 'https://api-service.vtpass.com/api';
-    const apiKey = cfg?.api_key || (cfg?.metadata as any)?.env?.VTPASS_API_KEY || '';
-    const secret = cfg?.secret_key || (cfg?.metadata as any)?.env?.VTPASS_SECRET || '';
+    const apiKey = (cfg?.api_key || (cfg?.metadata as any)?.env?.VTPASS_API_KEY || process.env.VTPASS_API_KEY || '').trim();
+    const secret = (cfg?.secret_key || (cfg?.metadata as any)?.env?.VTPASS_SECRET || process.env.VTPASS_SECRET || '').trim();
     this.api = axios.create({
       baseURL,
       headers: {
         'Content-Type': 'application/json',
         'api-key': apiKey,
         'secret-key': secret,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 15000,
     });
     return this.api;
   }

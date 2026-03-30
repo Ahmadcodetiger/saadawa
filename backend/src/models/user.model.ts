@@ -18,6 +18,7 @@ const userSchema = new Schema<IUser>({
   referral_code: { type: String, unique: true, required: true },
   referred_by: { type: Schema.Types.ObjectId, ref: 'User' },
   biometric_enabled: { type: Boolean, default: false },
+  profile_image: { type: String },
   nin: { type: String },
   bvn: { type: String },
   // Store hashed PIN; do not enforce 4-char length on hash

@@ -33,6 +33,7 @@ export interface IUser extends Document {
   referral_code: string;
   referred_by?: Types.ObjectId;
   biometric_enabled: boolean;
+  profile_image?: string;
   virtual_account?: IVirtualAccount;
   status: 'active' | 'inactive' | 'suspended';
   created_at: Date;

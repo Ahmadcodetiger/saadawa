@@ -17,13 +17,11 @@ class TopupmateService {
   private async ensureClient() {
     // Always fetch fresh config to handle admin updates immediately
     const cfg = await ProviderConfig.findOne({ code: 'topupmate' });
-    const baseURL = cfg?.base_url || this.baseURL;
-
-    // Only use API key from database configuration
-    const apiKey = cfg?.api_key?.trim();
+    const baseURL = cfg?.base_url || process.env.TOPUPMATE_BASE_URL || this.baseURL;
+    const apiKey = (cfg?.api_key || process.env.TOPUPMATE_API_KEY || '').trim();
 
     if (!apiKey) {
-      throw new Error('TopupMate API key not found in configuration. Please configure it in the admin panel.');
+      throw new Error('TopupMate API key not found. Please add TOPUPMATE_API_KEY to your .env file.');
     }
 
     this.api = axios.create({
@@ -31,8 +29,9 @@ class TopupmateService {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Token ${apiKey}`,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 15000,
     });
 
     // Request interceptor

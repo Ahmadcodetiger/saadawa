@@ -1,152 +1,147 @@
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { ShieldCheck, Key, Info, CheckCircle } from 'phosphor-react-native';
+import { useRouter } from 'expo-router';
+
+import { useAppTheme } from '../src/theme/ThemeContext';
+import { Text } from '../src/components/atoms/Text';
+import { Button } from '../src/components/atoms/Button';
+import { Input } from '../src/components/atoms/Input';
+import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
 import { useAlert } from '@/components/AlertContext';
 import { userService } from '@/services/user.service';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
-
-const theme = {
-  primary: '#0A2540',
-  accent: '#FF9F43',
-};
 
 export default function SetPinScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const { showSuccess, showError, showInfo } = useAlert();
-
-  const bgColor = isDark ? '#111921' : '#F8F9FA';
-  const cardBgColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor = isDark ? '#FFFFFF' : '#1F2937';
-  const textBodyColor = isDark ? '#9CA3AF' : '#6B7280';
-  const borderColor = isDark ? '#374151' : '#E5E7EB';
+  const { colors } = useAppTheme();
+  const { showSuccess, showError } = useAlert();
 
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSetPin = async () => {
-    if (!/^[0-9]{4}$/.test(pin)) {
-      showError('PIN must be exactly 4 digits');
-      return;
+    if (pin.length !== 4) {
+      showError('PIN must be 4 digits'); return;
     }
     if (pin !== confirmPin) {
-      showError('PINs do not match');
-      return;
+      showError('PINs do not match'); return;
     }
-
-    setLoading(true);
+    setIsLoading(true);
     try {
       const res = await userService.setTransactionPin(pin);
-      if (res?.success) {
-        showSuccess('Transaction PIN set successfully');
-        router.back();
-      } else {
-        showError(res?.message || 'Failed to set PIN');
-      }
+      if (res.success) {
+        showSuccess('Transaction PIN set successfully!');
+        setTimeout(() => router.replace('/(tabs)'), 1500);
+      } else showError(res.message || 'Failed to set PIN');
     } catch (e: any) {
-      showError(e?.message || 'Failed to set PIN');
+      showError(e.message);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}> 
-      <View style={[styles.header, { backgroundColor: bgColor, borderBottomColor: borderColor }]}> 
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={textColor} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Set Transaction PIN</Text>
-        <View style={{ width: 40 }} />
+    <ScreenWrapper scroll>
+      <View style={styles.header}>
+        <Text variant="headingMedium" bold>Secure your Payments</Text>
+        <Text variant="bodySmall" color="textSecondary">Set your 4-digit transaction PIN</Text>
       </View>
 
-      <View style={styles.content}> 
-        <View style={[styles.card, { backgroundColor: cardBgColor, borderColor }]}> 
-          <Text style={[styles.label, { color: textBodyColor }]}>Enter 4-digit PIN</Text>
-          <View style={[styles.inputWrapper, { borderColor, backgroundColor: isDark ? '#374151' : '#F9FAFB' }]}> 
-            <Ionicons name="lock-closed-outline" size={18} color={textBodyColor} />
-            <TextInput
-              style={[styles.input, { color: textColor }]}
-              value={pin}
-              onChangeText={(t) => setPin(t.replace(/\D/g, '').slice(0, 4))}
-              keyboardType="number-pad"
-              maxLength={4}
-              secureTextEntry
-              placeholder="••••"
-              placeholderTextColor={textBodyColor}
-            />
+      <View style={styles.content}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.primary }]}>
+                  <Key size={32} color="white" weight="duotone" />
+              </View>
+              <Text variant="bodyMedium" bold style={{ marginTop: 24 }}>Create Transaction PIN</Text>
+              <Text variant="caption" color="textSecondary" style={{ textAlign: 'center', marginTop: 8 }}>
+                  This PIN will be required for all transfers, bill payments and withdrawals.
+              </Text>
+
+              <View style={styles.form}>
+                  <Input 
+                      label="New PIN"
+                      value={pin}
+                      onChangeText={setPin}
+                      maxLength={4}
+                      keyboardType="number-pad"
+                      secureTextEntry
+                      placeholder="****"
+                      style={styles.pinInput}
+                  />
+                  <Input 
+                      label="Confirm PIN"
+                      value={confirmPin}
+                      onChangeText={setConfirmPin}
+                      maxLength={4}
+                      keyboardType="number-pad"
+                      secureTextEntry
+                      placeholder="****"
+                      style={styles.pinInput}
+                  />
+              </View>
           </View>
 
-          <Text style={[styles.label, { color: textBodyColor, marginTop: 16 }]}>Confirm PIN</Text>
-          <View style={[styles.inputWrapper, { borderColor, backgroundColor: isDark ? '#374151' : '#F9FAFB' }]}> 
-            <Ionicons name="lock-closed" size={18} color={textBodyColor} />
-            <TextInput
-              style={[styles.input, { color: textColor }]}
-              value={confirmPin}
-              onChangeText={(t) => setConfirmPin(t.replace(/\D/g, '').slice(0, 4))}
-              keyboardType="number-pad"
-              maxLength={4}
-              secureTextEntry
-              placeholder="••••"
-              placeholderTextColor={textBodyColor}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: loading || pin.length !== 4 || confirmPin.length !== 4 ? (isDark ? '#374151' : '#D1D5DB') : theme.accent }]}
-            disabled={loading || pin.length !== 4 || confirmPin.length !== 4}
+          <Button 
+            label="Set Transaction PIN"
             onPress={handleSetPin}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Set PIN</Text>
-            )}
-          </TouchableOpacity>
+            loading={isLoading}
+            style={styles.btn}
+            icon={<ShieldCheck size={20} color="white" weight="bold" />}
+          />
 
-          <Text style={[styles.helper, { color: textBodyColor }]}>You'll use this PIN to authorize airtime, data and bill payments.</Text>
-        </View>
+          <View style={[styles.info, { backgroundColor: colors.primaryLight }]}>
+             <Info size={20} color={colors.primary} weight="duotone" />
+             <Text variant="caption" color="primary" style={{ flex: 1 }}>
+                Do not share your PIN with anyone. Saadawa staff will never ask for your PIN.
+             </Text>
+          </View>
       </View>
-    </View>
+
+      <View style={{ height: 100 }} />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-    borderBottomWidth: 1,
+    marginBottom: 24,
+    marginTop: 12,
   },
-  backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
-  content: { padding: 16 },
-  card: { borderRadius: 12, padding: 16, borderWidth: 1 },
-  label: { fontSize: 14, marginBottom: 8 },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 48,
+  content: {
+    paddingHorizontal: 4,
   },
-  input: { flex: 1, fontSize: 18, letterSpacing: 8 },
-  primaryButton: {
-    height: 48,
-    borderRadius: 8,
+  card: {
     alignItems: 'center',
+    padding: 32,
+    borderRadius: 32,
+    marginBottom: 24,
+  },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
-    marginTop: 20,
+    alignItems: 'center',
   },
-  primaryButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
-  helper: { marginTop: 12, textAlign: 'center' },
+  form: {
+    width: '100%',
+    marginTop: 32,
+  },
+  pinInput: {
+    textAlign: 'center',
+    fontSize: 24,
+    letterSpacing: 12,
+  },
+  btn: {
+    marginTop: 12,
+  },
+  info: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+    marginTop: 32,
+  },
 });

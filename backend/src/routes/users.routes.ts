@@ -14,10 +14,4 @@ router.post('/kyc', authMiddleware, UserController.uploadKYC);
 router.post('/transaction-pin', authMiddleware, (req, res) => UserController.setTransactionPin(req, res));
 router.put('/transaction-pin', authMiddleware, (req, res) => UserController.updateTransactionPin(req, res));
 
-// Admin routes for user management
-router.get('/', authMiddleware, UserController.getAllUsers);
-router.get('/:id', authMiddleware, UserController.getUserById);
-router.put('/:id', authMiddleware, UserController.updateUser);
-router.delete('/:id', authMiddleware, UserController.deleteUser);
-
 export default router;

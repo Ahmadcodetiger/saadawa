@@ -177,7 +177,9 @@ export class AdminController {
       const query: any = {};
 
       if (search) {
-        const searchRegex = new RegExp(search, 'i');
+        // Sanitize the search string to prevent ReDoS (Regular Expression Denial of Service)
+        const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const searchRegex = new RegExp(escapedSearch, 'i');
         query.$or = [
           { first_name: searchRegex },
           { last_name: searchRegex },
@@ -303,10 +305,34 @@ export class AdminController {
         description || 'Admin manual credit'
       );
 
+      // Create transaction record
+      await Transaction.create({
+        user_id: user._id,
+        wallet_id: walletBefore._id,
+        type: 'credit',
+        amount: parseFloat(amount),
+        total_charged: parseFloat(amount),
+        status: 'successful',
+        reference_number: `ADM-${crypto.randomBytes(8).toString('hex').toUpperCase()}`,
+        description: description || 'Admin manual credit',
+        payment_method: 'admin',
+        created_at: new Date(),
+        updated_at: new Date()
+      });
+
+      // Send notification to user
+      const { NotificationService } = await import('../services/notification.service.js');
+      await NotificationService.createNotification({
+        user_id: user._id,
+        type: 'wallet_credit',
+        title: 'Wallet Credited',
+        message: `Your wallet has been credited with ₦${amount}. ${description || ''}`,
+      });
+
       // Get updated wallet
       const walletAfter = await WalletService.getWalletByUserId(userId);
 
-      // Log action
+      // Log action (Audit Log)
       await AdminService.logAction({
         admin_id: req.user?.id as any,
         action: 'wallet_credited',

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { useTheme } from '@/components/ThemeContext';
+import { useTheme } from '@/src/theme/ThemeContext';
 import AdminUsersScreen from '@/screens/AdminUsersScreen';
 
 export default function AdminUsersRoute() {

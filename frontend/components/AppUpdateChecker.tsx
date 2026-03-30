@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Linking, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { notificationsService } from '@/services/notifications.service';
-import { useTheme } from './ThemeContext';
+import { useTheme } from '@/src/theme/ThemeContext';
 
 export function AppUpdateChecker() {
     const [updateAvailable, setUpdateAvailable] = useState(false);

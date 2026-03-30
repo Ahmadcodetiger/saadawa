@@ -150,9 +150,9 @@ export const getVirtualAccount = async (req: AuthRequest, res: Response) => {
     });
 
     if (!virtualAccount) {
-      return res.status(404).json({
-        success: false,
-        message: 'Virtual account not found',
+      return res.status(200).json({
+        success: true,
+        message: 'No virtual account found for this user',
         data: { exists: false },
       });
     }

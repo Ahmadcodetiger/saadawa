@@ -1,20 +1,28 @@
-import { useTheme } from "@/components/ThemeContext";
-import { SupportContent, supportService } from "@/services/support.service";
-import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
   Linking,
-  ScrollView,
-  StatusBar,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { 
+  ChatTeardropDots, 
+  PhoneCall, 
+  Envelope, 
+  WhatsappLogo, 
+  CaretDown, 
+  CaretUp, 
+  Question 
+} from 'phosphor-react-native';
+
+import { useAppTheme } from "@/src/theme/ThemeContext";
+import { Text } from "@/src/components/atoms/Text";
+import { ScreenWrapper } from "@/src/components/templates/ScreenWrapper";
+import { supportService, SupportContent } from "@/services/support.service";
 
 export default function SupportScreen() {
-  const { isDark } = useTheme();
+  const { colors, isDark } = useAppTheme();
   const [selectedFAQ, setSelectedFAQ] = useState<number | null>(null);
   const [supportContent, setSupportContent] = useState<SupportContent | null>(null);
 
@@ -33,40 +41,30 @@ export default function SupportScreen() {
     }
   };
 
-  const theme = {
-    primary: "#0A2540",
-    accent: "#FF9F43",
-    backgroundLight: "#F8F9FA",
-    backgroundDark: "#111921",
-    textHeadings: "#1E293B",
-    textBody: "#475569",
-  };
-
-  const bgColor = isDark ? theme.backgroundDark : theme.backgroundLight;
-  const textColor = isDark ? "#FFFFFF" : theme.textHeadings;
-  const textBodyColor = isDark ? "#9CA3AF" : theme.textBody;
-  const cardBg = isDark ? "#1F2937" : "#F3F4F6";
-
   const supportOptions = [
     {
-      icon: "chatbubble-outline",
+      icon: ChatTeardropDots,
       label: "Live Chat",
       description: "Chat with our support team",
+      color: "#5B6AF0"
     },
     {
-      icon: "call-outline",
+      icon: PhoneCall,
       label: "Call Us",
       description: supportContent?.phoneNumber || "Loading...",
+      color: "#3B9EEB"
     },
     {
-      icon: "mail-outline",
+      icon: Envelope,
       label: "Email Support",
       description: supportContent?.email || "Loading...",
+      color: "#E040A0"
     },
     {
-      icon: "logo-whatsapp",
+      icon: WhatsappLogo,
       label: "WhatsApp",
       description: supportContent?.whatsappNumber || "Loading...",
+      color: "#25D366"
     },
   ];
 
@@ -102,164 +100,138 @@ export default function SupportScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-
+    <ScreenWrapper scroll>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: bgColor }]}>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Support</Text>
+      <View style={styles.header}>
+        <Text variant="headingMedium" bold>Support</Text>
+        <Text variant="bodySmall" color="textSecondary">How can we help you today?</Text>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Contact Options */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>
-            Contact Us
-          </Text>
-          <View style={styles.optionsGrid}>
-            {supportOptions.map((option, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.optionCard, { backgroundColor: cardBg }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  if (option.label === "Call Us") {
-                    // 📞 Open phone dialer
-                    if (supportContent?.phoneNumber) {
-                      Linking.openURL(`tel:${supportContent.phoneNumber.replace(/\s+/g, "")}`);
-                    }
-                  } else if (option.label === "Email Support") {
-                    // 📧 Open default mail app
-                    if (supportContent?.email) {
-                      Linking.openURL(`mailto:${supportContent.email}`);
-                    }
-                  } else if (option.label === "Live Chat") {
-                    // 💬 Maybe navigate to your chat screen later
-                    Alert.alert("Live Chat", "Live chat feature coming soon!");
-                  } else if (option.label === "WhatsApp") {
-                    // 💚 Open WhatsApp chat
-                    if (supportContent?.whatsappNumber) {
-                      const cleanNumber = supportContent.whatsappNumber.replace(/[^0-9]/g, '');
-                      const message = "Hello! I need some help regarding your app.";
-                      const whatsappURL = `whatsapp://send?phone=${cleanNumber}&text=${encodeURIComponent(message)}`;
-
-                      Linking.canOpenURL(whatsappURL)
-                        .then((supported) => {
-                          if (!supported) {
-                            // Fallback to web url if app not installed
-                            return Linking.openURL(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`);
-                          } else {
-                            return Linking.openURL(whatsappURL);
-                          }
-                        })
-                        .catch((err) => console.error("An error occurred", err));
-                    }
+      {/* Contact Options */}
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>
+          CONTACT US
+        </Text>
+        <View style={styles.optionsGrid}>
+          {supportOptions.map((option, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[styles.optionCard, { backgroundColor: colors.surface }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (option.label === "Call Us") {
+                  if (supportContent?.phoneNumber) {
+                    Linking.openURL(`tel:${supportContent.phoneNumber.replace(/\s+/g, "")}`);
                   }
-                }}
-              >
-                <View
-                  style={[
-                    styles.optionIcon,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(255, 159, 67, 0.2)"
-                        : "rgba(10, 37, 64, 0.1)",
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={option.icon as any}
-                    size={24}
-                    color={isDark ? theme.accent : theme.primary}
-                  />
-                </View>
-                <Text style={[styles.optionLabel, { color: textColor }]}>
-                  {option.label}
-                </Text>
-                <Text
-                  style={[styles.optionDescription, { color: textBodyColor }]}
-                >
-                  {option.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+                } else if (option.label === "Email Support") {
+                  if (supportContent?.email) {
+                    Linking.openURL(`mailto:${supportContent.email}`);
+                  }
+                } else if (option.label === "Live Chat") {
+                  Alert.alert("Live Chat", "Live chat feature coming soon!");
+                } else if (option.label === "WhatsApp") {
+                  if (supportContent?.whatsappNumber) {
+                    const cleanNumber = supportContent.whatsappNumber.replace(/[^0-9]/g, '');
+                    const message = "Hello! I need some help regarding your app.";
+                    const whatsappURL = `whatsapp://send?phone=${cleanNumber}&text=${encodeURIComponent(message)}`;
 
-        {/* FAQs */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>
-            Frequently Asked Questions
-          </Text>
-          <View style={styles.faqList}>
-            {faqData.map((faq, index) => (
-              <View key={index} style={styles.faqItem}>
-                <TouchableOpacity
-                  style={styles.faqQuestion}
-                  onPress={() => toggleFAQ(index)}
-                >
-                  <Text style={[styles.faqQuestionText, { color: textColor }]}>
+                    Linking.canOpenURL(whatsappURL)
+                      .then((supported) => {
+                        if (!supported) {
+                          return Linking.openURL(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`);
+                        } else {
+                          return Linking.openURL(whatsappURL);
+                        }
+                      })
+                      .catch((err) => console.error("An error occurred", err));
+                  }
+                }
+              }}
+            >
+              <View
+                style={[
+                  styles.optionIcon,
+                  {
+                    backgroundColor: isDark
+                      ? `${option.color}20`
+                      : `${option.color}10`,
+                  },
+                ]}
+              >
+                <option.icon
+                  size={24}
+                  color={option.color}
+                  weight="duotone"
+                />
+              </View>
+              <Text variant="bodyMedium" bold style={{ marginBottom: 4 }}>
+                {option.label}
+              </Text>
+              <Text
+                variant="caption"
+                color="textSecondary"
+                style={{ textAlign: "center" }}
+              >
+                {option.description}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* FAQs */}
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>
+          FREQUENTLY ASKED QUESTIONS
+        </Text>
+        <View style={styles.faqList}>
+          {faqData.map((faq, index) => (
+            <View key={index} style={[styles.faqItem, { borderBottomColor: colors.border }]}>
+              <TouchableOpacity
+                style={styles.faqQuestion}
+                onPress={() => toggleFAQ(index)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Question size={20} color={colors.primary} weight="duotone" />
+                  <Text variant="bodyMedium" bold style={{ flex: 1, marginLeft: 12 }}>
                     {faq.question}
                   </Text>
-                  <Ionicons
-                    name={selectedFAQ === index ? "chevron-up" : "chevron-down"}
-                    size={20}
-                    color={textBodyColor}
-                  />
-                </TouchableOpacity>
+                </View>
+                {selectedFAQ === index ? 
+                  <CaretUp size={16} color={colors.textTertiary} /> : 
+                  <CaretDown size={16} color={colors.textTertiary} />
+                }
+              </TouchableOpacity>
 
-                {selectedFAQ === index && (
-                  <View style={styles.faqAnswer}>
-                    <Text style={[styles.faqAnswerText, { color: textBodyColor }]}>
-                      {faq.answer}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            ))}
-          </View>
+              {selectedFAQ === index && (
+                <View style={styles.faqAnswer}>
+                  <Text variant="caption" color="textSecondary" style={styles.faqAnswerText}>
+                    {faq.answer}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ))}
         </View>
+      </View>
 
-        <View style={{ height: 120 }} />
-      </ScrollView>
-    </View>
+      <View style={{ height: 120 }} />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
+    marginBottom: 24,
+    marginTop: 12,
   },
   section: {
-    paddingHorizontal: 16,
-    marginTop: 24,
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
     marginBottom: 16,
+    marginLeft: 4,
+    letterSpacing: 1,
   },
   optionsGrid: {
     flexDirection: "row",
@@ -280,45 +252,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  optionLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-    textAlign: "center",
-  },
-  optionDescription: {
-    fontSize: 12,
-    textAlign: "center",
-  },
   faqList: {
-    gap: 12,
+    gap: 0,
   },
   faqItem: {
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
   },
-  faqHeader: {
+  faqQuestion: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  faqQuestion: {
-    fontSize: 16,
-    fontWeight: "500",
-    flex: 1,
-  },
-  faqQuestionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-    marginRight: 12,
-  },
   faqAnswer: {
-    paddingBottom: 16,
+    paddingTop: 12,
     paddingRight: 32,
   },
   faqAnswerText: {
-    fontSize: 14,
     lineHeight: 20,
+    marginLeft: 32,
   },
 });

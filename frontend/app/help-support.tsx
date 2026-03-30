@@ -1,49 +1,36 @@
-import { useAlert } from '@/components/AlertContext';
-import { SupportContent, supportService } from '@/services/support.service';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import {
-  Alert,
-  Linking,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { 
+  ChatTeardropDots, 
+  PhoneCall, 
+  Envelope, 
+  WhatsappLogo, 
+  CaretDown, 
+  CaretUp, 
+  Info,
+  Question,
+  Note
+} from 'phosphor-react-native';
 
-const theme = {
-  primary: '#0A2540',
-  accent: '#FF9F43',
-  success: '#00D4AA',
-  error: '#FF5B5B',
-  backgroundLight: '#F8F9FA',
-  backgroundDark: '#111921',
-  textHeadings: '#1E293B',
-  textBody: '#475569',
-};
+import { useAppTheme } from '../src/theme/ThemeContext';
+import { Text } from '../src/components/atoms/Text';
+import { Button } from '../src/components/atoms/Button';
+import { Input } from '../src/components/atoms/Input';
+import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
+import { SettingRow } from '../src/components/molecules/SettingRow';
+import { useAlert } from '@/components/AlertContext';
+import { supportService } from '@/services/support.service';
 
 export default function HelpSupportScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useAppTheme();
   const { showSuccess, showError } = useAlert();
-
-  const bgColor = isDark ? theme.backgroundDark : theme.backgroundLight;
-  const cardBgColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor = isDark ? '#FFFFFF' : theme.textHeadings;
-  const textBodyColor = isDark ? '#9CA3AF' : theme.textBody;
-  const borderColor = isDark ? '#374151' : '#E5E7EB';
-  const inputBgColor = isDark ? '#374151' : '#F9FAFB';
 
   const [selectedFAQ, setSelectedFAQ] = useState<number | null>(null);
   const [supportMessage, setSupportMessage] = useState('');
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
-  const [supportContent, setSupportContent] = useState<SupportContent | null>(null);
+  const [supportContent, setSupportContent] = useState<any>(null);
 
   useEffect(() => {
     fetchSupportContent();
@@ -52,411 +39,150 @@ export default function HelpSupportScreen() {
   const fetchSupportContent = async () => {
     try {
       const response = await supportService.getSupportContent();
-      if (response.success) {
-        setSupportContent(response.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch support content:', error);
+      if (response.success) setSupportContent(response.data);
+    } catch (e) {
+      console.error('Failed to fetch support content:', e);
     }
   };
 
   const faqData = [
-    {
-      question: 'How do I buy airtime or data?',
-      answer: 'To buy airtime or data, go to the home screen and select either "Buy Airtime" or "Buy Data". Choose your network provider, enter the phone number, select the amount, and confirm your purchase.'
-    },
-    {
-      question: 'How long does it take for transactions to be processed?',
-      answer: 'Most transactions are processed instantly. However, in some cases, it may take up to 5 minutes. If your transaction takes longer than expected, please contact our support team.'
-    },
-    {
-      question: 'How do I add money to my wallet?',
-      answer: 'You can add money to your wallet by tapping "Add Money" on the home screen. Choose your preferred payment method (bank transfer, card payment, or USSD) and follow the instructions.'
-    },
-    {
-      question: 'What should I do if a transaction fails?',
-      answer: 'If a transaction fails, the amount will be automatically refunded to your wallet within 24 hours. If you don\'t receive your refund, please contact our support team with your transaction reference.'
-    },
-    {
-      question: 'How do I change my password?',
-      answer: 'Go to Profile > Security > Change Password. Enter your current password and your new password. Make sure your new password is at least 8 characters long and includes letters and numbers.'
-    },
-    {
-      question: 'Is my money safe in the app?',
-      answer: 'Yes, your money is completely safe. We use bank-level security encryption and comply with all financial regulations. Your wallet funds are held in secure escrow accounts.'
-    }
+    { q: 'How do I buy airtime or data?', a: 'Go to the home screen and select "Buy Airtime" or "Buy Data". Choose your network, enter the phone number, select the amount, and confirm.' },
+    { q: 'How long do transactions take?', a: 'Most are instant. Some may take up to 5 minutes. If it takes longer, contact support.' },
+    { q: 'How do I fund my wallet?', a: 'Tap "Add Money" on the home screen. Choose a method and follow the prompts.' },
+    { q: 'What if a transaction fails?', a: 'Failed transactions are automatically refunded within 24 hours.' },
   ];
 
   const contactOptions = [
-    {
-      title: 'Live Chat',
-      description: 'Chat with our support team',
-      icon: 'chatbubbles',
-      action: () => Alert.alert('Live Chat', 'Live chat feature coming soon!')
-    },
-    {
-      title: 'Call Support',
-      description: supportContent?.phoneNumber || 'Loading...',
-      icon: 'call',
-      action: () => {
-        if (supportContent?.phoneNumber) {
-          Linking.openURL(`tel:${supportContent.phoneNumber}`);
-        }
-      }
-    },
-    {
-      title: 'Email Support',
-      description: supportContent?.email || 'Loading...',
-      icon: 'mail',
-      action: () => {
-        if (supportContent?.email) {
-          Linking.openURL(`mailto:${supportContent.email}`);
-        }
-      }
-    },
-    {
-      title: 'WhatsApp',
-      description: supportContent?.whatsappNumber || 'Loading...',
-      icon: 'logo-whatsapp',
-      action: () => {
-        if (supportContent?.whatsappNumber) {
-          // Remove + and spaces for wa.me link
-          const cleanNumber = supportContent.whatsappNumber.replace(/[^0-9]/g, '');
-          Linking.openURL(`https://wa.me/${cleanNumber}`);
-        }
-      }
-    }
+    { title: 'Live Chat', desc: 'Chat with our support team', icon: ChatTeardropDots, action: () => Alert.alert('Soon', 'Coming soon!') },
+    { title: 'Call Support', desc: supportContent?.phoneNumber || 'Loading...', icon: PhoneCall, action: () => supportContent?.phoneNumber && Linking.openURL(`tel:${supportContent.phoneNumber}`) },
+    { title: 'Email Support', desc: supportContent?.email || 'Loading...', icon: Envelope, action: () => supportContent?.email && Linking.openURL(`mailto:${supportContent.email}`) },
+    { title: 'WhatsApp', desc: supportContent?.whatsappNumber || 'Loading...', icon: WhatsappLogo, action: () => supportContent?.whatsappNumber && Linking.openURL(`https://wa.me/${supportContent.whatsappNumber}`) },
   ];
 
   const handleSubmitTicket = async () => {
     if (!supportMessage.trim()) {
-      showError('Please enter your message');
-      return;
+      showError('Please enter your message'); return;
     }
-
     setIsSubmittingTicket(true);
-
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-
-      showSuccess('Support ticket submitted successfully! We\'ll get back to you within 24 hours.');
+      showSuccess('Ticket submitted!');
       setSupportMessage('');
-    } catch (error) {
-      showError('Failed to submit support ticket. Please try again.');
     } finally {
       setIsSubmittingTicket(false);
     }
   };
 
-  const toggleFAQ = (index: number) => {
-    setSelectedFAQ(selectedFAQ === index ? null : index);
-  };
-
   return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: bgColor, borderBottomColor: borderColor }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={textColor} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Help & Support</Text>
-        <View style={styles.placeholder} />
+    <ScreenWrapper scroll>
+      <View style={styles.header}>
+        <Text variant="headingMedium" bold>Help & Support</Text>
+        <Text variant="bodySmall" color="textSecondary">How can we help you today?</Text>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Quick Actions */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Contact Support</Text>
-
-          {contactOptions.map((option, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.contactItem}
-              onPress={option.action}
-            >
-              <View style={styles.contactInfo}>
-                <Ionicons name={option.icon as any} size={24} color={theme.primary} />
-                <View style={styles.contactTextContainer}>
-                  <Text style={[styles.contactTitle, { color: textColor }]}>{option.title}</Text>
-                  <Text style={[styles.contactDescription, { color: textBodyColor }]}>
-                    {option.description}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={textBodyColor} />
-            </TouchableOpacity>
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>CONTACT CHANNELS</Text>
+        <View style={styles.grid}>
+          {contactOptions.map((opt, i) => (
+            <SettingRow 
+              key={i}
+              label={opt.title}
+              description={opt.desc}
+              icon={opt.icon}
+              onPress={opt.action}
+              hideBorder={i === contactOptions.length - 1}
+            />
           ))}
         </View>
+      </View>
 
-        {/* Submit Support Ticket */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Submit a Support Ticket</Text>
-
-          <Text style={[styles.inputLabel, { color: textBodyColor }]}>Describe your issue</Text>
-          <TextInput
-            style={[styles.textArea, {
-              backgroundColor: inputBgColor,
-              borderColor: borderColor,
-              color: textColor
-            }]}
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>SUBMIT A TICKET</Text>
+        <Input 
+            label="Message"
             value={supportMessage}
             onChangeText={setSupportMessage}
-            placeholder="Please describe your issue in detail..."
-            placeholderTextColor={textBodyColor}
+            placeholder="Describe your issue..."
             multiline
-            numberOfLines={5}
-            textAlignVertical="top"
-          />
-
-          <TouchableOpacity
-            style={[styles.submitButton, {
-              backgroundColor: theme.primary,
-              opacity: isSubmittingTicket ? 0.7 : 1
-            }]}
+            style={{ height: 120, paddingTop: 16 }}
+        />
+        <Button 
+            label="Submit Support Ticket"
             onPress={handleSubmitTicket}
-            disabled={isSubmittingTicket}
+            loading={isSubmittingTicket}
+            style={{ marginTop: 16 }}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>FREQUENTLY ASKED QUESTIONS</Text>
+        {faqData.map((faq, idx) => (
+          <TouchableOpacity 
+            key={idx} 
+            style={[styles.faqItem, { borderBottomColor: colors.border }]}
+            onPress={() => setSelectedFAQ(selectedFAQ === idx ? null : idx)}
           >
-            <Text style={styles.submitButtonText}>
-              {isSubmittingTicket ? 'Submitting...' : 'Submit Ticket'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* FAQ Section */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Frequently Asked Questions</Text>
-
-          {faqData.map((faq, index) => (
-            <View key={index} style={styles.faqItem}>
-              <TouchableOpacity
-                style={styles.faqQuestion}
-                onPress={() => toggleFAQ(index)}
-              >
-                <Text style={[styles.faqQuestionText, { color: textColor }]}>
-                  {faq.question}
-                </Text>
-                <Ionicons
-                  name={selectedFAQ === index ? "chevron-up" : "chevron-down"}
-                  size={20}
-                  color={textBodyColor}
-                />
-              </TouchableOpacity>
-
-              {selectedFAQ === index && (
-                <View style={styles.faqAnswer}>
-                  <Text style={[styles.faqAnswerText, { color: textBodyColor }]}>
-                    {faq.answer}
-                  </Text>
-                </View>
-              )}
+            <View style={styles.faqHeader}>
+              <Question size={20} color={colors.primary} weight="duotone" />
+              <Text variant="bodyMedium" bold style={{ flex: 1, marginLeft: 12 }}>{faq.q}</Text>
+              {selectedFAQ === idx ? <CaretUp size={16} color={colors.textTertiary} /> : <CaretDown size={16} color={colors.textTertiary} />}
             </View>
-          ))}
-        </View>
-
-        {/* Additional Resources */}
-        <View style={[styles.section, { backgroundColor: cardBgColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Additional Resources</Text>
-
-          <TouchableOpacity style={styles.resourceItem}>
-            <View style={styles.resourceInfo}>
-              <Ionicons name="document-text" size={24} color={theme.primary} />
-              <View style={styles.resourceTextContainer}>
-                <Text style={[styles.resourceTitle, { color: textColor }]}>User Guide</Text>
-                <Text style={[styles.resourceDescription, { color: textBodyColor }]}>
-                  Step-by-step guide to using the app
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={textBodyColor} />
+            {selectedFAQ === idx && (
+              <Text variant="caption" color="textSecondary" style={styles.faqBody}>
+                {faq.a}
+              </Text>
+            )}
           </TouchableOpacity>
+        ))}
+      </View>
 
-          <TouchableOpacity style={styles.resourceItem}>
-            <View style={styles.resourceInfo}>
-              <Ionicons name="videocam" size={24} color={theme.primary} />
-              <View style={styles.resourceTextContainer}>
-                <Text style={[styles.resourceTitle, { color: textColor }]}>Video Tutorials</Text>
-                <Text style={[styles.resourceDescription, { color: textBodyColor }]}>
-                  Watch how-to videos
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={textBodyColor} />
-          </TouchableOpacity>
+      <View style={[styles.info, { backgroundColor: colors.primaryLight }]}>
+         <Info size={20} color={colors.primary} weight="duotone" />
+         <Text variant="caption" color="primary" style={{ flex: 1 }}>
+            Our support team is available 24/7 to assist you. Responses typically take less than 30 minutes.
+         </Text>
+      </View>
 
-          <TouchableOpacity
-            style={styles.resourceItem}
-            onPress={() => {
-              if (supportContent?.websiteUrl) {
-                Linking.openURL(supportContent.websiteUrl);
-              }
-            }}
-          >
-            <View style={styles.resourceInfo}>
-              <Ionicons name="globe" size={24} color={theme.primary} />
-              <View style={styles.resourceTextContainer}>
-                <Text style={[styles.resourceTitle, { color: textColor }]}>Visit Website</Text>
-                <Text style={[styles.resourceDescription, { color: textBodyColor }]}>
-                  {supportContent?.websiteUrl || 'www.vtuapp.com'}
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={textBodyColor} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ height: 50 }} />
-      </ScrollView>
-    </View>
+      <View style={{ height: 100 }} />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  placeholder: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 20,
+    marginBottom: 24,
+    marginTop: 12,
   },
   section: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 12,
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 20,
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  contactInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  contactTextContainer: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  contactTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  contactDescription: {
-    fontSize: 14,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    height: 120,
     marginBottom: 16,
+    marginLeft: 4,
+    letterSpacing: 1,
   },
-  submitButton: {
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  grid: {
+    backgroundColor: 'transparent',
   },
   faqItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  faqQuestion: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-  },
-  faqQuestionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-    marginRight: 12,
-  },
-  faqAnswer: {
-    paddingBottom: 16,
-    paddingRight: 32,
-  },
-  faqAnswerText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  resourceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
-  resourceInfo: {
+  faqHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
-  resourceTextContainer: {
-    marginLeft: 16,
-    flex: 1,
+  faqBody: {
+    marginTop: 12,
+    marginLeft: 32,
+    lineHeight: 18,
   },
-  resourceTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  resourceDescription: {
-    fontSize: 14,
+  info: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+    marginTop: 8,
   },
 });
