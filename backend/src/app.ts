@@ -31,7 +31,7 @@ const app = express();
 app.use(helmet());
 
 // CORS Configuration - Restrict to trusted origins in production
-const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:19000', 'http://localhost:19006', 'http://localhost:8081'];
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:19000', 'http://localhost:19006', 'http://localhost:8081', 'https://saadawa-admin.vercel.app'];
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? allowedOrigins : '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
