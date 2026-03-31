@@ -129,10 +129,22 @@ export const authService = {
    */
   verifyEmailOTP: async (data: { email: string; otp_code: string }): Promise<any> => {
     try {
-      const response = await api.post('/auth/verify-email-otp', data);
+      const response = await api.post('/auth/verify-otp', data);
       return response.data;
     } catch (error: any) {
       throw error.response?.data || { success: false, message: 'OTP verification failed' };
+    }
+  },
+
+  /**
+   * Reset password using OTP
+   */
+  resetPassword: async (data: { phone_number: string; otp_code: string; new_password: string }): Promise<any> => {
+    try {
+      const response = await api.post('/auth/reset-password', data);
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data || { success: false, message: 'Password reset failed' };
     }
   },
 

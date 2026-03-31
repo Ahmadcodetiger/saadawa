@@ -10,10 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.saadawadata.vtu"
+      "bundleIdentifier": "com.ahmadcodetiger.saadawa"
     },
     "android": {
-      "package": "com.saadawadata.vtu",
+      "package": "com.ahmadcodetiger.saadawa",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

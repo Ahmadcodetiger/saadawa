@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.saadawadata.vtu'
+    namespace 'com.ahmadcodetiger.saadawa'
     defaultConfig {
-        applicationId 'com.saadawadata.vtu'
+        applicationId 'com.ahmadcodetiger.saadawa'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -126,7 +126,6 @@ android {
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
             useLegacyPackaging enableLegacyPackaging.toBoolean()
         }
-        pickFirst '**/libworklets.so'
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'

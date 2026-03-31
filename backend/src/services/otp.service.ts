@@ -26,10 +26,10 @@ export class OTPService {
     }
 
     const otp_code = await this.generateOTP();
-    const expires_at = new Date(Date.now() + config.otpExpiry);
+    const expires_at = new Date(Date.now() + 600000); // 10 minutes
 
     await OTP.create({
-      user_id,
+      user_id: user_id ? user_id.toString() : undefined,
       phone_number,
       email,
       otp_code,
@@ -37,7 +37,9 @@ export class OTPService {
       is_used: false
     });
 
-    // TODO: Send OTP via SMS/Email service
+    // For development: Log OTP to console until an email/SMS provider is configured
+    console.log(`\n🔑 [OTP SERVICE] Generated OTP for ${phone_number}: ${otp_code}\n`);
+
     return otp_code;
   }
 

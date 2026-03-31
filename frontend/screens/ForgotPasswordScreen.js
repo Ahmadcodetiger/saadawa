@@ -57,9 +57,12 @@ export default function ForgotPasswordScreen() {
     try {
       const res = await authService.requestPasswordReset({ email: email.trim().toLowerCase() });
       if (res?.success) {
-        showAlert("OTP has been sent to your email.", "success");
+        showAlert("Password reset OTP has been sent to your email.", "success");
         setTimeout(() => {
-          router.push({ pathname: "/verify-otp", params: { email: email.trim().toLowerCase() } });
+          router.push({ 
+            pathname: "/reset-password", 
+            params: { phone: res.data?.phone_number || '' } 
+          });
         }, 500);
       } else {
         showAlert(res?.message || "Failed to send OTP. Please try again.", "error");

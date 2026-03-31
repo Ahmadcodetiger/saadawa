@@ -113,7 +113,6 @@ export class AuthController {
         return ApiResponse.error(res, 'Phone number is required', 400);
       }
 
-      // Try to find the user to get their email if not provided
       let userEmail = email;
       if (!userEmail) {
         const user = await User.findOne({ phone_number });
@@ -122,9 +121,66 @@ export class AuthController {
         }
       }
 
-      const otp_code = await OTPService.createOTP(phone_number, userEmail);
+      await OTPService.createOTP(phone_number, userEmail);
 
       return ApiResponse.success(res, null, 'OTP sent successfully');
+    } catch (error: any) {
+      return ApiResponse.error(res, error.message, 500);
+    }
+  }
+
+  static async forgotPassword(req: Request, res: Response) {
+    try {
+      const { email, phone_number } = req.body;
+
+      if (!email && !phone_number) {
+        return ApiResponse.error(res, 'Email or phone number is required', 400);
+      }
+
+      const query = email ? { email } : { phone_number };
+      const user = await User.findOne(query);
+
+      if (!user) {
+        return ApiResponse.error(res, 'User not found', 404);
+      }
+
+      await OTPService.createOTP(user.phone_number, user.email, user._id.toString());
+
+      return ApiResponse.success(res, { phone_number: user.phone_number }, 'Password reset OTP sent successfully');
+    } catch (error: any) {
+      return ApiResponse.error(res, error.message, 500);
+    }
+  }
+
+  static async resetPassword(req: Request, res: Response) {
+    try {
+      const { phone_number, otp_code, new_password } = req.body;
+
+      if (!phone_number || !otp_code || !new_password) {
+        return ApiResponse.error(res, 'Missing required fields', 400);
+      }
+
+      // Strong password validation
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      if (!passwordRegex.test(new_password)) {
+        return ApiResponse.error(res, 'Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&)', 400);
+      }
+
+      const isValid = await OTPService.verifyOTP(phone_number, otp_code);
+      if (!isValid) {
+        return ApiResponse.error(res, 'Invalid or expired OTP', 400);
+      }
+
+      const user = await User.findOne({ phone_number });
+      if (!user) {
+        return ApiResponse.error(res, 'User not found', 404);
+      }
+
+      user.password_hash = await bcrypt.hash(new_password, 10);
+      user.updated_at = new Date();
+      await user.save();
+
+      return ApiResponse.success(res, null, 'Password reset successful');
     } catch (error: any) {
       return ApiResponse.error(res, error.message, 500);
     }

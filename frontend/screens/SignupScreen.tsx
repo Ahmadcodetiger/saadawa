@@ -53,6 +53,15 @@ const SignupScreen: React.FC = () => {
       return;
     }
 
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      Alert.alert(
+        "❌ Weak Password", 
+        "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character (@$!%*?&)."
+      );
+      return;
+    }
+
     if (pin !== confirmPin) {
       Alert.alert("❌ PIN Mismatch", "The transaction PINs do not match.");
       return;
@@ -135,6 +144,13 @@ const SignupScreen: React.FC = () => {
                 onChangeText={(v) => updateForm('password', v)}
                 isPassword
             />
+            {formData.password.length > 0 && (
+              <View style={styles.passwordHint}>
+                <Text variant="caption" color={/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(formData.password) ? "success" : "textSecondary"}>
+                  • Must be 8+ chars with Upper, Lower, Number & Symbol
+                </Text>
+              </View>
+            )}
             <Input
                 label="Confirm Password"
                 value={formData.confirmPassword}
@@ -213,6 +229,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  passwordHint: {
+    marginTop: -8,
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
 });
 

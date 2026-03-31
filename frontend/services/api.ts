@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
 // import * as Network from "expo-network";
 import { paymentPointService } from './paymentpoint.service';
@@ -20,9 +20,9 @@ import {
 } from './types';
 
 // Local development - use computer's IP for physical devices
-export const API_BASE_URL = 'http://10.33.189.112:8000/api'; // Local IP for Android
+//export const API_BASE_URL = 'http://10.33.189.112:8000/api'; // Local IP for Android
 // export const API_BASE_URL = 'http://localhost:8000/api'; // Local Backend
-//export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // Production
+export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // Production
 
 
 // Log the API URL being used
@@ -203,6 +203,12 @@ const authService = {
 
   resendOtp: (phoneData: { phone_number: string }) =>
     api.post<ApiResponse>('/auth/resend-otp', phoneData),
+
+  forgotPassword: (data: { email?: string; phone_number?: string }) =>
+    api.post<ApiResponse<{ phone_number: string }>>('/auth/forgot-password', data),
+
+  resetPassword: (data: { phone_number: string; otp_code: string; new_password: string }) =>
+    api.post<ApiResponse>('/auth/reset-password', data),
 };
 
 // User Service
@@ -236,6 +242,9 @@ const userService = {
 
   updateTransactionPin: (data: { current_pin?: string; new_pin: string }) =>
     api.put<ApiResponse>('/users/transaction-pin', data),
+
+  updatePassword: (data: { current_password: string; new_password: string }) =>
+    api.put<ApiResponse>('/users/update-password', data),
 };
 
 // Wallet Service

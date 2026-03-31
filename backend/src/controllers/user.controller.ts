@@ -232,4 +232,38 @@ export class UserController {
       return ApiResponse.error(res, error.message, 500);
     }
   }
+
+  static async updatePassword(req: AuthRequest, res: Response) {
+    try {
+      const { current_password, new_password } = req.body;
+
+      if (!current_password || !new_password) {
+        return ApiResponse.error(res, 'Current and new passwords are required', 400);
+      }
+
+      const user = await User.findById(req.user?.id);
+      if (!user) {
+        return ApiResponse.error(res, 'User not found', 404);
+      }
+
+      const isMatch = await bcrypt.compare(current_password, user.password_hash);
+      if (!isMatch) {
+        return ApiResponse.error(res, 'Current password is incorrect', 400);
+      }
+
+      // Strong password validation
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      if (!passwordRegex.test(new_password)) {
+        return ApiResponse.error(res, 'New password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character', 400);
+      }
+
+      user.password_hash = await bcrypt.hash(new_password, 10);
+      user.updated_at = new Date();
+      await user.save();
+
+      return ApiResponse.success(res, null, 'Password updated successfully');
+    } catch (error: any) {
+      return ApiResponse.error(res, error.message, 500);
+    }
+  }
 }

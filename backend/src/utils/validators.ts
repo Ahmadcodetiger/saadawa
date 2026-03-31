@@ -9,7 +9,15 @@ export const userValidation = {
       'string.empty': 'Phone number is required',
       'any.required': 'Phone number is required',
     }),
-    password: Joi.string().min(8).required(),
+    password: Joi.string()
+      .min(8)
+      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&)',
+        'string.min': 'Password must be at least 8 characters long',
+        'any.required': 'Password is required'
+      }),
     first_name: Joi.string().required(),
     last_name: Joi.string().required(),
     referral_code: Joi.string().optional(),

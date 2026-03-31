@@ -1,4 +1,4 @@
-package com.saadawadata.vtu
+package com.ahmadcodetiger.saadawa
 
 import android.app.Application
 import android.content.res.Configuration

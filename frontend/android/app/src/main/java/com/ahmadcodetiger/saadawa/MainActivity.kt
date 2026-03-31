@@ -1,4 +1,4 @@
-package com.saadawadata.vtu
+package com.ahmadcodetiger.saadawa
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

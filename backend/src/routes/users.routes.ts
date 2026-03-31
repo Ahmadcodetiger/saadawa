@@ -7,6 +7,8 @@ const router = Router();
 // User routes (protected)
 router.get('/profile', authMiddleware, UserController.getProfile);
 router.put('/profile', authMiddleware, UserController.updateProfile);
+router.put('/update-password', authMiddleware, (req, res) => UserController.updatePassword(req, res));
+router.put('/password', authMiddleware, (req, res) => UserController.updatePassword(req, res));
 router.delete('/profile', authMiddleware, UserController.deleteProfile);
 router.post('/kyc', authMiddleware, UserController.uploadKYC);
 
