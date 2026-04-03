@@ -41,8 +41,13 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     DefaultNewArchitectureEntryPoint.releaseLevel = try {
-      ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
-    } catch (e: IllegalArgumentException) {
+      val level = try {
+        BuildConfig::class.java.getField("REACT_NATIVE_RELEASE_LEVEL").get(null).toString()
+      } catch (e: Exception) {
+        "stable"
+      }
+      ReleaseLevel.valueOf(level.uppercase())
+    } catch (e: Exception) {
       ReleaseLevel.STABLE
     }
     loadReactNative(this)
