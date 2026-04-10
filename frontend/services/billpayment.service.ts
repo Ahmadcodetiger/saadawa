@@ -1,3 +1,4 @@
+
 import api from './api';
 
 export interface Network {
@@ -23,7 +24,7 @@ export interface AirtimePurchaseData {
   amount: number;
   airtime_type?: 'VTU' | 'SHARE_AND_SELL';
   ported_number?: boolean;
-  pin?: string; // 4-digit transaction pin
+  pin?: string;
 }
 
 export interface DataPurchaseData {
@@ -31,14 +32,72 @@ export interface DataPurchaseData {
   phone: string;
   plan: string;
   ported_number?: boolean;
-  pin?: string; // 4-digit transaction pin
+  pin?: string;
 }
 
 export interface BillPaymentResponse {
   success: boolean;
   message: string;
   data?: any;
+  networks?: Network[];
+  plans?: DataPlan[];
 }
+
+/**
+ * Helper to normalize API responses
+ * Handles different response shapes from backend
+ */
+const normalizeResponse = (response: any): BillPaymentResponse => {
+  // If response is already in expected format
+  if (response && typeof response.success === 'boolean') {
+    return response;
+  }
+
+  // If response has data wrapper
+  if (response?.data && typeof response.data.success === 'boolean') {
+    return response.data;
+  }
+
+  // Fallback: wrap response as data
+  return {
+    success: true,
+    message: 'Success',
+    data: response,
+  };
+};
+
+/**
+ * Helper to normalize error responses
+ */
+const normalizeError = (error: any, fallbackMessage: string): BillPaymentResponse => {
+  const errorData = error?.response?.data;
+
+  // Log error for debugging
+  console.error(`❌ Bill Payment Error: ${fallbackMessage}`, {
+    status: error?.response?.status,
+    data: errorData,
+    message: error?.message,
+  });
+
+  // If error response has expected structure
+  if (errorData && typeof errorData.success === 'boolean') {
+    return errorData;
+  }
+
+  // If error response has message
+  if (errorData?.message) {
+    return {
+      success: false,
+      message: errorData.message,
+    };
+  }
+
+  // Fallback error
+  return {
+    success: false,
+    message: error?.message || fallbackMessage,
+  };
+};
 
 export const billPaymentService = {
   /**
@@ -46,10 +105,25 @@ export const billPaymentService = {
    */
   getNetworks: async (): Promise<BillPaymentResponse> => {
     try {
+      console.log('📡 Fetching networks...');
       const response = await api.get<BillPaymentResponse>('/billpayment/networks');
-      return response.data;
+      console.log('✅ Networks response:', response.data);
+
+      const normalized = normalizeResponse(response.data);
+
+      // Handle networks array in different locations
+      if (!normalized.networks) {
+        normalized.networks =
+          response.data?.networks ||
+          response.data?.data?.networks ||
+          response.data?.data ||
+          (Array.isArray(response.data) ? response.data : undefined);
+      }
+
+      return normalized;
     } catch (error: any) {
-      throw error.response?.data || { success: false, message: 'Failed to fetch networks' };
+      const normalizedError = normalizeError(error, 'Failed to fetch networks');
+      throw normalizedError;
     }
   },
 
@@ -58,12 +132,27 @@ export const billPaymentService = {
    */
   getDataPlans: async (network?: string): Promise<BillPaymentResponse> => {
     try {
+      console.log('📶 Fetching data plans...', { network });
       const response = await api.get<BillPaymentResponse>('/billpayment/data-plans', {
-        params: { network },
+        params: network ? { network } : undefined,
       });
-      return response.data;
+      console.log('✅ Data plans response:', response.data);
+
+      const normalized = normalizeResponse(response.data);
+
+      // Handle plans array in different locations
+      if (!normalized.plans) {
+        normalized.plans =
+          response.data?.plans ||
+          response.data?.data?.plans ||
+          response.data?.data ||
+          (Array.isArray(response.data) ? response.data : undefined);
+      }
+
+      return normalized;
     } catch (error: any) {
-      throw error.response?.data || { success: false, message: 'Failed to fetch data plans' };
+      const normalizedError = normalizeError(error, 'Failed to fetch data plans');
+      throw normalizedError;
     }
   },
 
@@ -72,13 +161,20 @@ export const billPaymentService = {
    */
   purchaseAirtime: async (data: AirtimePurchaseData): Promise<BillPaymentResponse> => {
     try {
-      console.log('📱 Purchasing airtime:', data);
+      console.log('📱 Purchasing airtime:', {
+        network: data.network,
+        phone: data.phone,
+        amount: data.amount,
+        airtime_type: data.airtime_type,
+      });
+
       const response = await api.post<BillPaymentResponse>('/billpayment/airtime', data);
       console.log('✅ Airtime purchase response:', response.data);
-      return response.data;
+
+      return normalizeResponse(response.data);
     } catch (error: any) {
-      console.error('❌ Airtime purchase error:', error.response?.data || error.message);
-      throw error.response?.data || { success: false, message: 'Failed to purchase airtime' };
+      const normalizedError = normalizeError(error, 'Failed to purchase airtime');
+      throw normalizedError;
     }
   },
 
@@ -87,28 +183,41 @@ export const billPaymentService = {
    */
   purchaseData: async (data: DataPurchaseData): Promise<BillPaymentResponse> => {
     try {
-      console.log('📶 Purchasing data:', data);
+      console.log('📶 Purchasing data:', {
+        network: data.network,
+        phone: data.phone,
+        plan: data.plan,
+      });
+
       const response = await api.post<BillPaymentResponse>('/billpayment/data', data);
       console.log('✅ Data purchase response:', response.data);
-      return response.data;
+
+      return normalizeResponse(response.data);
     } catch (error: any) {
-      console.error('❌ Data purchase error:', error.response?.data || error.message);
-      throw error.response?.data || { success: false, message: 'Failed to purchase data' };
+      const normalizedError = normalizeError(error, 'Failed to purchase data');
+      throw normalizedError;
     }
   },
 
   /**
    * Verify cable account
    */
-  verifyCableAccount: async (provider: string, iucnumber: string): Promise<BillPaymentResponse> => {
+  verifyCableAccount: async (
+    provider: string,
+    iucnumber: string
+  ): Promise<BillPaymentResponse> => {
     try {
+      console.log('📺 Verifying cable account:', { provider, iucnumber });
       const response = await api.post<BillPaymentResponse>('/billpayment/cable/verify', {
         provider,
         iucnumber,
       });
-      return response.data;
+      console.log('✅ Cable verify response:', response.data);
+
+      return normalizeResponse(response.data);
     } catch (error: any) {
-      throw error.response?.data || { success: false, message: 'Failed to verify cable account' };
+      const normalizedError = normalizeError(error, 'Failed to verify cable account');
+      throw normalizedError;
     }
   },
 
@@ -117,26 +226,38 @@ export const billPaymentService = {
    */
   purchaseCableTV: async (data: any): Promise<BillPaymentResponse> => {
     try {
+      console.log('📺 Purchasing cable TV:', data);
       const response = await api.post<BillPaymentResponse>('/billpayment/cable/purchase', data);
-      return response.data;
+      console.log('✅ Cable purchase response:', response.data);
+
+      return normalizeResponse(response.data);
     } catch (error: any) {
-      throw error.response?.data || { success: false, message: 'Failed to purchase cable TV' };
+      const normalizedError = normalizeError(error, 'Failed to purchase cable TV');
+      throw normalizedError;
     }
   },
 
   /**
    * Verify electricity meter
    */
-  verifyElectricityMeter: async (provider: string, meternumber: string, metertype: string): Promise<BillPaymentResponse> => {
+  verifyElectricityMeter: async (
+    provider: string,
+    meternumber: string,
+    metertype: string
+  ): Promise<BillPaymentResponse> => {
     try {
+      console.log('💡 Verifying electricity meter:', { provider, meternumber, metertype });
       const response = await api.post<BillPaymentResponse>('/billpayment/electricity/verify', {
         provider,
         meternumber,
         metertype,
       });
-      return response.data;
+      console.log('✅ Electricity verify response:', response.data);
+
+      return normalizeResponse(response.data);
     } catch (error: any) {
-      throw error.response?.data || { success: false, message: 'Failed to verify meter' };
+      const normalizedError = normalizeError(error, 'Failed to verify meter');
+      throw normalizedError;
     }
   },
 
@@ -145,10 +266,14 @@ export const billPaymentService = {
    */
   purchaseElectricity: async (data: any): Promise<BillPaymentResponse> => {
     try {
+      console.log('💡 Purchasing electricity:', data);
       const response = await api.post<BillPaymentResponse>('/billpayment/electricity/purchase', data);
-      return response.data;
+      console.log('✅ Electricity purchase response:', response.data);
+
+      return normalizeResponse(response.data);
     } catch (error: any) {
-      throw error.response?.data || { success: false, message: 'Failed to purchase electricity' };
+      const normalizedError = normalizeError(error, 'Failed to purchase electricity');
+      throw normalizedError;
     }
   },
 
@@ -157,10 +282,16 @@ export const billPaymentService = {
    */
   getTransactionStatus: async (reference: string): Promise<BillPaymentResponse> => {
     try {
-      const response = await api.get<BillPaymentResponse>(`/billpayment/transaction/${reference}`);
-      return response.data;
+      console.log('🔍 Getting transaction status:', { reference });
+      const response = await api.get<BillPaymentResponse>(
+        `/billpayment/transaction/${reference}`
+      );
+      console.log('✅ Transaction status response:', response.data);
+
+      return normalizeResponse(response.data);
     } catch (error: any) {
-      throw error.response?.data || { success: false, message: 'Failed to get transaction status' };
+      const normalizedError = normalizeError(error, 'Failed to get transaction status');
+      throw normalizedError;
     }
   },
 };
