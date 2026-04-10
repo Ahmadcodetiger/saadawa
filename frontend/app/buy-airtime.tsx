@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,6 +14,13 @@ import { useAlert } from '@/components/AlertContext';
 import { billPaymentService } from '@/services/billpayment.service';
 
 const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
+
+const FALLBACK_NETWORKS: Network[] = [
+  { id: '1', name: 'MTN', color: '#FFCC00' },
+  { id: '2', name: 'Glo', color: '#00A95C' },
+  { id: '3', name: 'Airtel', color: '#FF0000' },
+  { id: '4', name: '9mobile', color: '#00693E' },
+];
 
 export default function BuyAirtimeScreen() {
   const router = useRouter();
@@ -42,31 +50,33 @@ export default function BuyAirtimeScreen() {
   }, []);
 
   const loadNetworks = async () => {
-    const fallbackNetworks: Network[] = [
-        { id: '1', name: 'MTN', color: '#FFCC00' },
-        { id: '2', name: 'Glo', color: '#00A95C' },
-        { id: '3', name: 'Airtel', color: '#FF0000' },
-        { id: '4', name: '9mobile', color: '#00693E' }
-    ];
-
     try {
       setNetLoading(true);
       const res = await billPaymentService.getNetworks();
-      
-      const networksData = res?.data?.data || res?.data || res;
-      
+
+      // FIX: Handle multiple possible response shapes from backend
+      // Backend may return: { success: true, networks: [...] }
+      // Or service may return: response.data which could be the above
+      // Or it could be wrapped: { data: { networks: [...] } }
+      const networksData =
+        res?.networks ||           // Direct: { networks: [...] }
+        res?.data?.networks ||     // Wrapped: { data: { networks: [...] } }
+        res?.data?.data ||         // Double wrapped
+        res?.data ||               // Just data array
+        (Array.isArray(res) ? res : null); // Direct array
+
       if (Array.isArray(networksData) && networksData.length > 0) {
         const mapped: Network[] = networksData.map((n: any) => {
           let color = '#0A2540';
           const rawName = n.name || n.network_name || n.network || n.title || '';
           const nameStr = typeof n === 'string' ? n : rawName;
           const lowerName = nameStr.toLowerCase();
-          
+
           if (lowerName.includes('mtn')) color = '#FFCC00';
           else if (lowerName.includes('glo')) color = '#00A95C';
           else if (lowerName.includes('airtel')) color = '#FF0000';
           else if (lowerName.includes('9mobile') || lowerName.includes('etisalat')) color = '#00693E';
-          
+
           return {
             id: String(n.id || n.network_code || n.network_id || nameStr || Math.random()),
             name: nameStr || 'Network',
@@ -75,11 +85,12 @@ export default function BuyAirtimeScreen() {
         });
         setNetworks(mapped);
       } else {
-        setNetworks(fallbackNetworks);
+        console.warn('No networks data received, using fallback');
+        setNetworks(FALLBACK_NETWORKS);
       }
-    } catch (e) {
-      console.error('Failed to load networks:', e);
-      setNetworks(fallbackNetworks);
+    } catch (e: any) {
+      console.error('Failed to load networks:', e?.message || e);
+      setNetworks(FALLBACK_NETWORKS);
     } finally {
       setNetLoading(false);
     }
@@ -108,14 +119,34 @@ export default function BuyAirtimeScreen() {
         pin,
       });
 
-      if (response.success) {
+      // FIX: Handle multiple possible response shapes
+      // Service returns response.data, so check for success in various places
+      const isSuccess =
+        response?.success === true ||
+        response?.data?.success === true ||
+        response?.status === 'success' ||
+        response?.data?.status === 'success';
+
+      const errorMessage =
+        response?.message ||
+        response?.data?.message ||
+        response?.error ||
+        'Failed to purchase airtime';
+
+      if (isSuccess) {
         showSuccess(`Airtime purchase successful! ₦${amount} sent to ${phoneNumber}`);
         setTimeout(() => router.back(), 2000);
       } else {
-        showError(response.message || 'Failed to purchase airtime');
+        showError(errorMessage);
       }
     } catch (error: any) {
-      showError(error.message || 'Failed to purchase airtime. Please try again.');
+      // FIX: Better error extraction from API errors
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Failed to purchase airtime. Please try again.';
+      showError(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -131,82 +162,108 @@ export default function BuyAirtimeScreen() {
       </View>
 
       <View style={styles.section}>
-        <NetworkSelector 
-            networks={networks}
-            selectedId={selectedNetworkId}
-            onSelect={setSelectedNetworkId}
-            label="Service Provider"
+        <NetworkSelector
+          networks={networks}
+          selectedId={selectedNetworkId}
+          onSelect={setSelectedNetworkId}
+          label="Service Provider"
         />
-        {netLoading && <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: -12, marginBottom: 12 }} />}
+        {netLoading && (
+          <ActivityIndicator
+            size="small"
+            color={colors.primary}
+            style={{ marginTop: -12, marginBottom: 12 }}
+          />
+        )}
       </View>
 
       <View style={styles.section}>
-        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>DESTINATION</Text>
-        <Input 
-            label="Receiver phone number"
-            value={phoneNumber}
-            onChangeText={(v: string) => setPhoneNumber(v.replace(/\D/g, '').slice(0, 11))}
-            keyboardType="phone-pad"
-            maxLength={11}
-            rightIcon={<Phone size={20} color={colors.textTertiary} />}
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>
+          DESTINATION
+        </Text>
+        <Input
+          label="Receiver phone number"
+          value={phoneNumber}
+          onChangeText={(v: string) => setPhoneNumber(v.replace(/\D/g, '').slice(0, 11))}
+          keyboardType="phone-pad"
+          maxLength={11}
+          rightIcon={<Phone size={20} color={colors.textTertiary} />}
         />
       </View>
 
       <View style={styles.section}>
-        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>AMOUNT</Text>
+        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>
+          AMOUNT
+        </Text>
         <View style={styles.quickAmounts}>
-            {quickAmounts.map(amt => (
-                <TouchableOpacity 
-                    key={amt}
-                    style={[
-                        styles.amtChip, 
-                        { backgroundColor: selectedAmount === amt ? colors.primary : colors.surface } 
-                    ]}
-                    onPress={() => { setSelectedAmount(amt); setCustomAmount(''); }}
-                >
-                    <Text variant="bodyMedium" bold style={{ color: selectedAmount === amt ? 'white' : colors.textPrimary }}>₦{amt}</Text>
-                </TouchableOpacity>
-            ))}
+          {quickAmounts.map((amt) => (
+            <TouchableOpacity
+              key={amt}
+              style={[
+                styles.amtChip,
+                { backgroundColor: selectedAmount === amt ? colors.primary : colors.surface },
+              ]}
+              onPress={() => {
+                setSelectedAmount(amt);
+                setCustomAmount('');
+              }}
+            >
+              <Text
+                variant="bodyMedium"
+                bold
+                style={{ color: selectedAmount === amt ? 'white' : colors.textPrimary }}
+              >
+                ₦{amt}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
-        <Input 
-            label="Other Amount"
-            value={customAmount}
-            onChangeText={(v: string) => { setCustomAmount(v); setSelectedAmount(null); }}
-            keyboardType="numeric"
-            rightIcon={<Coins size={20} color={colors.textTertiary} />}
+        <Input
+          label="Other Amount"
+          value={customAmount}
+          onChangeText={(v: string) => {
+            setCustomAmount(v);
+            setSelectedAmount(null);
+          }}
+          keyboardType="numeric"
+          rightIcon={<Coins size={20} color={colors.textTertiary} />}
         />
       </View>
 
       <View style={styles.section}>
-         <Input 
-            label="Transaction PIN"
-            value={pin}
-            onChangeText={(v: string) => setPin(v.replace(/\D/g, '').slice(0, 4))}
-            keyboardType="number-pad"
-            maxLength={4}
-            secureTextEntry
-            rightIcon={<Key size={20} color={colors.textTertiary} />}
+        <Input
+          label="Transaction PIN"
+          value={pin}
+          onChangeText={(v: string) => setPin(v.replace(/\D/g, '').slice(0, 4))}
+          keyboardType="number-pad"
+          maxLength={4}
+          secureTextEntry
+          rightIcon={<Key size={20} color={colors.textTertiary} />}
         />
       </View>
 
       {currentAmount > 0 && selectedNetworkId && (
-          <View style={[styles.summary, { backgroundColor: colors.surfaceElevated }]}>
-              <View style={styles.summaryItem}>
-                  <Text variant="bodySmall" color="textSecondary">Network</Text>
-                  <Text variant="bodyMedium" bold>{networks.find(n => n.id === selectedNetworkId)?.name}</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                  <Text variant="bodySmall" color="textSecondary">Recipient</Text>
-                  <Text variant="bodyMedium" bold>{phoneNumber || '-'}</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                  <Text variant="bodySmall" color="textSecondary">Total Cost</Text>
-                  <Text variant="headingSmall" color="primary" bold>₦{currentAmount.toLocaleString()}</Text>
-              </View>
+        <View style={[styles.summary, { backgroundColor: colors.surfaceElevated }]}>
+          <View style={styles.summaryItem}>
+            <Text variant="bodySmall" color="textSecondary">Network</Text>
+            <Text variant="bodyMedium" bold>
+              {networks.find((n) => n.id === selectedNetworkId)?.name}
+            </Text>
           </View>
+          <View style={styles.summaryItem}>
+            <Text variant="bodySmall" color="textSecondary">Recipient</Text>
+            <Text variant="bodyMedium" bold>{phoneNumber || '-'}</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text variant="bodySmall" color="textSecondary">Total Cost</Text>
+            <Text variant="headingSmall" color="primary" bold>
+              ₦{currentAmount.toLocaleString()}
+            </Text>
+          </View>
+        </View>
       )}
 
-      <Button 
+      <Button
         label="Purchase Airtime"
         onPress={handleBuy}
         loading={isLoading}
@@ -215,10 +272,10 @@ export default function BuyAirtimeScreen() {
       />
 
       <View style={[styles.info, { backgroundColor: colors.primaryLight }]}>
-         <Info size={20} color={colors.primary} weight="duotone" />
-         <Text variant="caption" color="primary" style={{ flex: 1 }}>
-            Airtime is delivered instantly. Please confirm the phone number before proceeding.
-         </Text>
+        <Info size={20} color={colors.primary} weight="duotone" />
+        <Text variant="caption" color="primary" style={{ flex: 1 }}>
+          Airtime is delivered instantly. Please confirm the phone number before proceeding.
+        </Text>
       </View>
 
       <View style={{ height: 100 }} />
