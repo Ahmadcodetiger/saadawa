@@ -4,29 +4,14 @@ import AirtimePlan from '../models/airtime_plan.model.js';
 import { Transaction, User } from '../models/index.js';
 import { Plan } from '../models/plan.model.js';
 import providerRegistry from '../services/providerRegistry.service.js';
-import topupmateService from '../services/topupmate.service.js';
 import smeplugService from '../services/smeplug.service.js';
+import topupmateService from '../services/topupmate.service.js';
 import { WalletService } from '../services/wallet.service.js';
 import { AuthRequest } from '../types/index.js';
 import { normalizeNetwork } from '../utils/network.js';
 import { ApiResponse } from '../utils/response.js';
 
-// Helper to map network to TopupMate network ID
-const getTopupmateNetworkId = (network: string | number): string => {
-  const networkMap: Record<string, string> = {
-    '1': '1',    // MTN
-    '2': '2',    // GLO
-    '3': '3',    // AIRTEL
-    '4': '4',    // 9MOBILE
-    'mtn': '1',
-    'glo': '2',
-    'airtel': '3',
-    '9mobile': '4',
-    'etisalat': '4',
-  };
-  const key = String(network).toLowerCase();
-  return networkMap[key] || String(network);
-};
+// TopupMate uses network names like 'mtn', 'airtel', 'glo', '9mobile'
 
 export class BillPaymentController {
   // Get networks - using TopupMate
@@ -176,8 +161,8 @@ export class BillPaymentController {
         return ApiResponse.error(res, 'Invalid network. Must be: mtn, airtel, glo, or 9mobile', 400);
       }
 
-      // Get TopupMate network ID
-      const topupmateNetworkId = getTopupmateNetworkId(providerId);
+      // Get TopupMate network name
+      const topupmateNetworkId = getNetworkName(providerId).toLowerCase();
 
       // Calculate discount
       const airtimePlan = await AirtimePlan.findOne({ providerId, type: 'AIRTIME', active: true });
