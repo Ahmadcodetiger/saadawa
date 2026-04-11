@@ -8,7 +8,7 @@ import smeplugService from '../services/smeplug.service.js';
 import topupmateService from '../services/topupmate.service.js';
 import { WalletService } from '../services/wallet.service.js';
 import { AuthRequest } from '../types/index.js';
-import { normalizeNetwork } from '../utils/network.js';
+import { getNetworkName, normalizeNetwork } from '../utils/network.js';
 import { ApiResponse } from '../utils/response.js';
 
 export class BillPaymentController {
@@ -214,8 +214,9 @@ export class BillPaymentController {
 
       try {
         const client = topupmateService;
+        const networkName = getNetworkName(providerId).toLowerCase();
         const result = await client.purchaseAirtime({
-            network: String(providerId),
+            network: networkName,
             phone: String(phone),
             ref,
             airtime_type,
