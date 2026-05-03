@@ -1,0 +1,19 @@
+import { Router } from 'express';
+import { UserController } from '../controllers/user.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
+
+const router = Router();
+
+// User routes (protected)
+router.get('/profile', authMiddleware, UserController.getProfile);
+router.put('/profile', authMiddleware, UserController.updateProfile);
+router.put('/update-password', authMiddleware, (req, res) => UserController.updatePassword(req, res));
+router.put('/password', authMiddleware, (req, res) => UserController.updatePassword(req, res));
+router.delete('/profile', authMiddleware, UserController.deleteProfile);
+router.post('/kyc', authMiddleware, UserController.uploadKYC);
+
+// Transaction PIN
+router.post('/transaction-pin', authMiddleware, (req, res) => UserController.setTransactionPin(req, res));
+router.put('/transaction-pin', authMiddleware, (req, res) => UserController.updateTransactionPin(req, res));
+
+export default router;
