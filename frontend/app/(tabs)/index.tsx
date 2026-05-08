@@ -53,8 +53,11 @@ export default function HomeScreen() {
   );
 
   const loadAllData = async () => {
+    // Only show skeletons on FIRST load (no cached data exists yet)
+    const hasData = wallet !== null || user !== null;
+    if (!hasData) setLoading(true);
+
     try {
-      setLoading(true);
       const token = await SecureStore.getItemAsync('authToken');
       if (token) {
         await Promise.all([
@@ -107,7 +110,17 @@ export default function HomeScreen() {
   const loadUserProfile = async () => {
     try {
       const response = await userService.getProfile();
-      if (response.success) setUser(response.data);
+      if (response.success) {
+        const userObj = response.data?.user ?? response.data;
+        setUser(userObj);
+      }
+      
+      // Background refresh user profile
+      const freshUser = await userService.fetchAndCacheProfile();
+      if (freshUser?.success) {
+        const userObj = freshUser.data?.user ?? freshUser.data;
+        setUser(userObj);
+      }
     } catch (error) {
        const userData = await authService.getCurrentUser();
        setUser(userData);
@@ -116,10 +129,15 @@ export default function HomeScreen() {
 
   const loadWalletData = async () => {
     try {
+      // 1. Load from cache (via getWallet)
       const response = await walletService.getWallet();
       if (response.success) setWallet(response.data);
+
+      // 2. Silently refresh from API in background
+      const freshWallet = await walletService.fetchAndCache();
+      if (freshWallet.success) setWallet(freshWallet.data);
     } catch (error) {
-      setWallet(null);
+      // Keep existing wallet state on error
     }
   };
 
@@ -168,8 +186,27 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadAllData();
-    setRefreshing(false);
+    try {
+      // Force fresh data from backend on pull-to-refresh, bypassing cache
+      await Promise.all([
+        userService.fetchAndCacheProfile().then((r: any) => {
+          if (r?.success) {
+            const userObj = r.data?.user ?? r.data;
+            setUser(userObj);
+          }
+        }).catch(() => {}),
+        walletService.fetchAndCache().then((r: any) => {
+          if (r?.success) setWallet(r.data);
+        }).catch(() => {}),
+        loadNotificationsData(),
+        loadVirtualAccount(),
+        loadRecentTransactions(),
+      ]);
+    } catch (error) {
+      console.error('Refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const services = [
@@ -230,15 +267,23 @@ export default function HomeScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
-        <TouchableOpacity onPress={() => router.push('/profile')}>
-          <Image
-            source={{ uri: user?.profile_image || user?.avatar || 'https://i.pravatar.cc/150?img=12' }}
-            style={styles.avatar}
-          />
-        </TouchableOpacity>
+        {loading ? (
+          <Skeleton width={48} height={48} borderRadius={24} style={{ marginRight: 12 }} />
+        ) : (
+          <TouchableOpacity onPress={() => router.push('/profile')}>
+            <Image
+              source={{ uri: user?.profile_image || user?.avatar || 'https://i.pravatar.cc/150?img=12' }}
+              style={styles.avatar}
+            />
+          </TouchableOpacity>
+        )}
         <View style={styles.greeting}>
           <Text variant="bodySmall" style={{ color: greetingEffect.color }} medium>{greetingEffect.text}</Text>
-          <Text variant="headingSmall" bold style={{ color: colors.textPrimary, fontSize: 22 }}>{user?.first_name || 'Guest'}</Text>
+          {loading ? (
+            <Skeleton width={120} height={18} borderRadius={8} style={{ marginTop: 4 }} />
+          ) : (
+            <Text variant="headingSmall" bold style={{ color: colors.textPrimary, fontSize: 22 }}>{user?.first_name || 'Guest'}</Text>
+          )}
         </View>
       </View>
       
@@ -264,10 +309,18 @@ export default function HomeScreen() {
         {renderHeader()}
 
         <View style={styles.walletSection}>
-          <WalletCard 
-            balance={wallet?.balance || 0}
-            onFund={() => router.push('/add-money')}
-          />
+          {loading ? (
+            <View style={[styles.walletSkeletonContainer, { backgroundColor: isDark ? '#1F2937' : '#E5E7EB' }]}>
+              <Skeleton width="40%" height={12} borderRadius={6} style={{ marginBottom: 10 }} />
+              <Skeleton width="65%" height={36} borderRadius={10} style={{ marginBottom: 18 }} />
+              <Skeleton width={120} height={36} borderRadius={18} />
+            </View>
+          ) : (
+            <WalletCard 
+              balance={wallet?.balance || 0}
+              onFund={() => router.push('/add-money')}
+            />
+          )}
         </View>
 
         <View style={styles.servicesSection}>
@@ -279,15 +332,25 @@ export default function HomeScreen() {
           </View>
           
           <View style={styles.servicesGrid}>
-            {services.map(service => (
-              <ServiceItem
-                key={service.id}
-                label={service.label}
-                icon={service.icon}
-                color={service.color}
-                onPress={() => router.push(service.route as any)}
-              />
-            ))}
+            {loading ? (
+              // Skeleton service items
+              [1,2,3,4].map(i => (
+                <View key={i} style={styles.serviceSkeletonItem}>
+                  <Skeleton width={56} height={56} borderRadius={16} style={{ marginBottom: 8 }} />
+                  <Skeleton width={48} height={10} borderRadius={5} />
+                </View>
+              ))
+            ) : (
+              services.map(service => (
+                <ServiceItem
+                  key={service.id}
+                  label={service.label}
+                  icon={service.icon}
+                  color={service.color}
+                  onPress={() => router.push(service.route as any)}
+                />
+              ))
+            )}
           </View>
         </View>
 
@@ -352,7 +415,22 @@ export default function HomeScreen() {
               </TouchableOpacity>
            </View>
            
-           {recentTransactions.length > 0 ? (
+           {loading ? (
+             // Skeleton transaction rows
+             [1,2,3].map(i => (
+               <View key={i} style={[styles.transactionSkeletonRow, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}>
+                 <Skeleton width={44} height={44} borderRadius={22} />
+                 <View style={{ flex: 1, marginLeft: 12, gap: 8 }}>
+                   <Skeleton width="60%" height={12} borderRadius={6} />
+                   <Skeleton width="40%" height={10} borderRadius={5} />
+                 </View>
+                 <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                   <Skeleton width={64} height={12} borderRadius={6} />
+                   <Skeleton width={48} height={10} borderRadius={5} />
+                 </View>
+               </View>
+             ))
+           ) : recentTransactions.length > 0 ? (
              recentTransactions.map(t => (
                 <TransactionRow 
                    key={t._id}
@@ -475,6 +553,25 @@ const styles = StyleSheet.create({
   },
   transactionSection: {
     marginBottom: 28,
+  },
+  walletSkeletonContainer: {
+    height: 210,
+    borderRadius: 24,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  serviceSkeletonItem: {
+    width: '25%',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  transactionSkeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
   },
 });
 

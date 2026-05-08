@@ -13,6 +13,7 @@ import { useAlert } from '@/components/AlertContext';
 import { useProfile } from '@/components/ProfileContext';
 import { userService } from '@/services/user.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Skeleton } from '../src/components/atoms/LayoutAtoms';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -135,6 +136,29 @@ export default function EditProfileScreen() {
       setIsLoading(false);
     }
   };
+
+  if (isInitialLoading) {
+    return (
+      <ScreenWrapper scroll>
+        <View style={styles.header}>
+          <Skeleton width={150} height={28} />
+          <Skeleton width={200} height={16} style={{ marginTop: 8 }} />
+        </View>
+        <View style={styles.avatarSection}>
+          <Skeleton width={110} height={110} borderRadius={55} />
+          <Skeleton width={120} height={16} style={{ marginTop: 12 }} />
+        </View>
+        <View style={styles.form}>
+           {[1, 2, 3, 4].map(i => (
+             <View key={i} style={{ marginBottom: 16 }}>
+               <Skeleton width={100} height={12} style={{ marginBottom: 8 }} />
+               <Skeleton width="100%" height={50} borderRadius={12} />
+             </View>
+           ))}
+        </View>
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper scroll>

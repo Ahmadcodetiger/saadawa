@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "39836c74-93dc-4826-bfba-bd1ce85fde80"
+      }
+    },
+    "android": {
+      "package": "com.devahmad.saadawamonorepo"
+    }
+  }
+}

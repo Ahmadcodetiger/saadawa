@@ -1,11 +1,13 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -174,6 +176,19 @@ const LoginScreen = () => {
   const cardBg = isDark ? "#1F2937" : "#FFFFFF";
   const borderColor = isDark ? "#374151" : "#334155";
 
+  // Animated spinner for login overlay
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (isLoggingIn) {
+      Animated.loop(
+        Animated.timing(rotateAnim, { toValue: 1, duration: 1000, useNativeDriver: true })
+      ).start();
+    } else {
+      rotateAnim.setValue(0);
+    }
+  }, [isLoggingIn]);
+  const spinInterpolate = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+
   return (
     <View style={[styles.container, { backgroundColor: bgColor }]}>
       <CustomAlert
@@ -183,6 +198,23 @@ const LoginScreen = () => {
         onClose={hideAlert}
         duration={5000}
       />
+
+      {/* Full-screen login loader overlay */}
+      <Modal visible={isLoggingIn} transparent animationType="fade">
+        <View style={styles.loaderOverlay}>
+          <View style={styles.loaderCard}>
+            <View style={styles.loaderSpinnerWrapper}>
+              <Animated.View style={[styles.loaderRing, { transform: [{ rotate: spinInterpolate }] }]} />
+              <View style={styles.loaderInner}>
+                <ActivityIndicator size="small" color="#5B6AF0" />
+              </View>
+            </View>
+            <Text style={styles.loaderTitle}>Signing you in...</Text>
+            <Text style={styles.loaderSubtitle}>Please wait a moment</Text>
+          </View>
+        </View>
+      </Modal>
+
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -407,6 +439,62 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
     transform: [{ scale: 0.98 }],
+  },
+  loaderOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loaderCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingVertical: 36,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.2,
+    shadowRadius: 32,
+    elevation: 20,
+    minWidth: 220,
+  },
+  loaderSpinnerWrapper: {
+    width: 72,
+    height: 72,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  loaderRing: {
+    position: 'absolute',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    borderTopColor: '#5B6AF0',
+    borderRightColor: '#8B5CF6',
+  },
+  loaderInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(91,106,240,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(91,106,240,0.2)',
+  },
+  loaderTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 6,
+  },
+  loaderSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
   },
   optionsRow: {
     flexDirection: "row",

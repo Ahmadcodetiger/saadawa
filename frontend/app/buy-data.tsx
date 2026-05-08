@@ -127,7 +127,6 @@ export default function BuyDataScreen() {
 
       {selectedNetworkId && (
         <View style={styles.section}>
-            <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>SELECT DATA PLAN</Text>
             {plansLoading ? (
                 <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 32 }} />
             ) : plans.length === 0 ? (

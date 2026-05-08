@@ -1,4 +1,7 @@
 import api from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const WALLET_CACHE_KEY = 'walletData'; // shared with api.ts
 
 export interface WalletData {
   _id: string;
@@ -18,12 +21,43 @@ export interface WalletResponse {
 
 export const walletService = {
   /**
-   * Get user wallet balance
+   * Get wallet — reads from AsyncStorage cache first, falls back to API.
+   * This makes the dashboard instant on revisit.
    */
   getWallet: async (): Promise<WalletResponse> => {
     try {
+      // 1. Try cache first — return instantly if available
+      const cached = await AsyncStorage.getItem(WALLET_CACHE_KEY);
+      if (cached) {
+        const walletObj = JSON.parse(cached);
+        // api.ts caches just the wallet object; wrap it in WalletResponse shape
+        const walletData: WalletData = walletObj?.balance !== undefined
+          ? walletObj
+          : walletObj?.data ?? walletObj;
+        return { success: true, data: walletData, message: 'from cache' };
+      }
+    } catch (e) {
+      console.log('Wallet cache read error:', e);
+    }
+    // 2. No cache — fetch from API and cache result
+    return walletService.fetchAndCache();
+  },
+
+  /**
+   * Force-fetch from backend and update cache. Call on pull-to-refresh.
+   */
+  fetchAndCache: async (): Promise<WalletResponse> => {
+    try {
       const response = await api.get<WalletResponse>('/wallet');
-      return response.data;
+      const data = response.data;
+      // Cache the wallet object (same key/format api.ts uses)
+      const walletObj = (data as any)?.data ?? data;
+      await AsyncStorage.setItem(WALLET_CACHE_KEY, JSON.stringify(walletObj));
+      // Normalise to WalletResponse
+      if ((data as any)?.data) {
+        return { success: true, data: (data as any).data, message: '' };
+      }
+      return data;
     } catch (error: any) {
       throw error.response?.data || { success: false, message: 'Failed to fetch wallet' };
     }

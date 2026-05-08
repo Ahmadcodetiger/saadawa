@@ -5,9 +5,9 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Text, Animated, StyleSheet } from 'react-native';
 import { AppUpdateChecker } from '@/components/AppUpdateChecker';
 
 // Keep splash screen visible while we fetch resources
@@ -34,11 +34,7 @@ function AuthLayout() {
   }, [isAuthenticated, isLoading, segments]);
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111418' }}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
-    );
+    return <AppLoadingScreen />;
   }
 
   return (
@@ -72,6 +68,98 @@ function AuthLayout() {
     </Stack>
   );
 }
+
+function AppLoadingScreen() {
+  const pulseAnim = useRef(new Animated.Value(0.6)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Pulse animation for logo text — native driver safe for opacity
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.6, duration: 900, useNativeDriver: true }),
+      ])
+    ).start();
+
+    // Spin animation — useNativeDriver: false avoids warnings on all RN versions
+    Animated.loop(
+      Animated.timing(rotateAnim, { toValue: 1, duration: 1200, useNativeDriver: false })
+    ).start();
+  }, []);
+
+  const spin = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+
+  return (
+    <View style={loadingStyles.container}>
+      {/* StatusBar is already handled by RootLayout — do NOT add it here */}
+
+      {/* Branded spinner ring */}
+      <View style={loadingStyles.spinnerWrapper}>
+        <Animated.View style={[loadingStyles.spinnerRing, { transform: [{ rotate: spin }] }]} />
+        <View style={loadingStyles.spinnerInner}>
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        </View>
+      </View>
+
+      {/* App name */}
+      <Animated.Text style={[loadingStyles.brandText, { opacity: pulseAnim }]}>
+        SAADAWA
+      </Animated.Text>
+
+      <Text style={loadingStyles.subText}>Loading your account...</Text>
+    </View>
+  );
+}
+
+const loadingStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0F1C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    // NOTE: 'gap' is not used here — not supported in older React Native versions
+  },
+  spinnerWrapper: {
+    width: 80,
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  spinnerRing: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    borderTopColor: '#5B6AF0',
+    borderRightColor: '#8B5CF6',
+  },
+  spinnerInner: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(91,106,240,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(91,106,240,0.3)',
+  },
+  brandText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 6,
+    marginBottom: 8,
+  },
+  subText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
+});
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({

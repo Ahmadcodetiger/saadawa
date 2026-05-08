@@ -160,7 +160,7 @@ export const AuthProvider = ({ children }) => {
         logout,
       }}
     >
-      {!isLoading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

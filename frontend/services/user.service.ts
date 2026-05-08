@@ -1,4 +1,7 @@
 import api from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const PROFILE_CACHE_KEY = 'profileData';
 
 export interface UserUpdateData {
   first_name?: string;
@@ -13,12 +16,36 @@ export interface UserUpdateData {
 
 export const userService = {
   /**
-   * Get user profile
+   * Get user profile — reads from cache first, falls back to API.
    */
   getProfile: async (): Promise<any> => {
     try {
+      // 1. Return from cache instantly if available
+      const cached = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return { success: true, data: parsed, message: 'from cache' };
+      }
+    } catch (e) {
+      console.log('Profile cache read error:', e);
+    }
+    // 2. No cache — fetch from API
+    return userService.fetchAndCacheProfile();
+  },
+
+  /**
+   * Force-fetch profile from backend and update cache. Use on pull-to-refresh.
+   */
+  fetchAndCacheProfile: async (): Promise<any> => {
+    try {
       const response = await api.get('/users/profile');
-      return response.data;
+      const data = response.data;
+      // Cache the user object
+      const userObj = data?.data?.user ?? data?.data ?? data;
+      if (userObj) {
+        await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(userObj));
+      }
+      return data;
     } catch (error: any) {
       throw error.response?.data || { success: false, message: 'Failed to fetch profile' };
     }

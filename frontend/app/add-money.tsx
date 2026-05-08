@@ -15,6 +15,7 @@ import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
 import { useAlert } from '@/components/AlertContext';
 import { authService } from '@/services/auth.service';
 import { paymentPointService } from '@/services/paymentpoint.service';
+import { Skeleton } from '../src/components/atoms/LayoutAtoms';
 
 export default function AddMoneyScreen() {
   const router = useRouter();
@@ -110,7 +111,20 @@ export default function AddMoneyScreen() {
         <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>YOUR VIRTUAL ACCOUNT</Text>
         {isLoadingVirtualAccount ? (
             <View style={[styles.cardPlaceholder, { backgroundColor: colors.surface }]}>
-                <ActivityIndicator color={colors.primary} />
+                <View style={{ width: '100%', padding: 24, gap: 16 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Skeleton width={40} height={30} borderRadius={6} />
+                        <Skeleton width={80} height={20} />
+                    </View>
+                    <View style={{ gap: 8, marginTop: 12 }}>
+                        <Skeleton width={120} height={12} />
+                        <Skeleton width="100%" height={28} />
+                    </View>
+                    <View style={{ marginTop: 12 }}>
+                        <Skeleton width={100} height={12} />
+                        <Skeleton width={150} height={20} />
+                    </View>
+                </View>
             </View>
         ) : virtualAccount ? (
             <View style={[styles.atmCard, { backgroundColor: colors.primary }]}>

@@ -16,6 +16,7 @@ import { Text } from '../src/components/atoms/Text';
 import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
 import { useAlert } from '@/components/AlertContext';
 import { notificationsService, Notification } from '@/services/notifications.service';
+import { Badge, Skeleton } from '@/src/components/atoms/LayoutAtoms';
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -95,15 +96,20 @@ export default function NotificationsScreen() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  if (loading && notifications.length === 0) {
-    return (
-      <ScreenWrapper>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </ScreenWrapper>
-    );
-  }
+  const renderSkeleton = () => (
+    <View style={styles.list}>
+        {[1, 2, 3, 4, 5, 6].map(i => (
+            <View key={i} style={[styles.item, { backgroundColor: colors.surface }]}>
+                <Skeleton width={48} height={48} borderRadius={16} />
+                <View style={{ flex: 1, gap: 8 }}>
+                    <Skeleton width="60%" height={16} />
+                    <Skeleton width="90%" height={12} />
+                    <Skeleton width="30%" height={10} />
+                </View>
+            </View>
+        ))}
+    </View>
+  );
 
   return (
     <ScreenWrapper 
@@ -122,6 +128,7 @@ export default function NotificationsScreen() {
         </TouchableOpacity>
       </View>
 
+      {loading && notifications.length === 0 ? renderSkeleton() : (
       <View style={styles.list}>
           {notifications.length === 0 ? (
             <View style={{ padding: 20, alignItems: 'center' }}>
@@ -163,6 +170,7 @@ export default function NotificationsScreen() {
             })
           )}
       </View>
+      )}
 
       <View style={[styles.info, { backgroundColor: colors.primaryLight }]}>
          <Bell size={20} color={colors.primary} weight="duotone" />

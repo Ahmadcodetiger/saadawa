@@ -17,7 +17,7 @@ import {
 import { useAppTheme } from '../../src/theme/ThemeContext';
 import { Text } from '../../src/components/atoms/Text';
 import { ScreenWrapper } from '../../src/components/templates/ScreenWrapper';
-import { Badge, Divider } from '../../src/components/atoms/LayoutAtoms';
+import { Badge, Divider, Skeleton } from '../../src/components/atoms/LayoutAtoms';
 
 import { userService } from '@/services/user.service';
 import { walletService } from '@/services/wallet.service';
@@ -41,8 +41,10 @@ export default function ProfileScreen() {
   );
 
   const loadAllData = async () => {
+    // Only show skeleton on first load when there is no cached data
+    const hasData = user !== null || wallet !== null;
+    if (!hasData) setLoading(true);
     try {
-      setLoading(true);
       await Promise.all([
         loadUserProfile(),
         loadWalletData(),
@@ -69,14 +71,30 @@ export default function ProfileScreen() {
       const response = await walletService.getWallet();
       if (response.success) setWallet(response.data);
     } catch (error) {
-      console.error('Error loading wallet:', error);
+      // Keep existing wallet on error
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadAllData();
-    setRefreshing(false);
+    try {
+      // Force fresh data from backend, bypassing cache
+      await Promise.all([
+        userService.fetchAndCacheProfile().then((r: any) => {
+          if (r?.success) {
+            const userObj = r.data?.user ?? r.data;
+            setUser(userObj);
+          }
+        }).catch(() => {}),
+        walletService.fetchAndCache().then((r: any) => {
+          if (r?.success) setWallet(r.data);
+        }).catch(() => {}),
+      ]);
+    } catch (error) {
+      console.error('Profile refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleLogout = () => {
@@ -124,86 +142,122 @@ export default function ProfileScreen() {
         <Text variant="headingMedium" bold>Profile</Text>
       </View>
 
-      <View style={[styles.profileCard, { backgroundColor: colors.primary }]}>
-        <View style={styles.profileInfo}>
-            <Image
-                source={{ uri: user?.avatar || 'https://i.pravatar.cc/150?img=12' }}
-                style={styles.avatar}
-            />
-            <View style={styles.profileText}>
-                <Text variant="headingSmall" color="textInverse" bold>{user?.first_name} {user?.last_name}</Text>
-                <Text variant="bodySmall" color="textInverse" style={{ opacity: 0.8 }}>{user?.email}</Text>
-                <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                    <Badge 
-                        label={user?.kyc_status?.toUpperCase() || 'LVL 1'} 
-                        variant="success" 
-                    />
-                </View>
+      {loading ? (
+        // Profile card skeleton
+        <View style={[styles.profileCard, { backgroundColor: colors.primary }]}>
+          <View style={styles.profileInfo}>
+            <Skeleton width={64} height={64} borderRadius={32} style={{ marginRight: 16 }} />
+            <View style={{ flex: 1, gap: 8 }}>
+              <Skeleton width="55%" height={16} borderRadius={8} />
+              <Skeleton width="75%" height={12} borderRadius={6} />
+              <Skeleton width={60} height={22} borderRadius={6} style={{ marginTop: 4 }} />
             </View>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={[styles.profileCard, { backgroundColor: colors.primary }]}>
+          <View style={styles.profileInfo}>
+              <Image
+                  source={{ uri: user?.avatar || 'https://i.pravatar.cc/150?img=12' }}
+                  style={styles.avatar}
+              />
+              <View style={styles.profileText}>
+                  <Text variant="headingSmall" color="textInverse" bold>{user?.first_name} {user?.last_name}</Text>
+                  <Text variant="bodySmall" color="textInverse" style={{ opacity: 0.8 }}>{user?.email}</Text>
+                  <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                      <Badge 
+                          label={user?.kyc_status?.toUpperCase() || 'LVL 1'} 
+                          variant="success" 
+                      />
+                  </View>
+              </View>
+          </View>
+        </View>
+      )}
 
       <View style={styles.statsRow}>
          <View style={[styles.statBox, { backgroundColor: colors.surface }]}>
             <Wallet size={20} color={colors.primary} weight="duotone" />
             <Text variant="bodySmall" color="textSecondary" style={{ marginTop: 4 }}>Balance</Text>
-            <Text variant="bodyLarge" bold>₦{wallet?.balance?.toLocaleString() || '0'}</Text>
+            {loading ? (
+              <Skeleton width={80} height={18} borderRadius={8} style={{ marginTop: 4 }} />
+            ) : (
+              <Text variant="bodyLarge" bold>₦{wallet?.balance?.toLocaleString() || '0'}</Text>
+            )}
          </View>
          <View style={[styles.statBox, { backgroundColor: colors.surface }]}>
             <ShieldCheck size={20} color={colors.success} weight="duotone" />
             <Text variant="bodySmall" color="textSecondary" style={{ marginTop: 4 }}>Security</Text>
-            <Text variant="bodyLarge" bold>Verified</Text>
+            {loading ? (
+              <Skeleton width={64} height={18} borderRadius={8} style={{ marginTop: 4 }} />
+            ) : (
+              <Text variant="bodyLarge" bold>Verified</Text>
+            )}
          </View>
       </View>
 
-      <View style={styles.menuSection}>
-        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>ACCOUNT SETTINGS</Text>
-        <MenuItem 
-            icon={User} 
-            label="Personal Information" 
-            onPress={() => router.push('/edit-profile' as any)} 
-        />
-        <MenuItem 
-            icon={Lock} 
-            label="Security & PIN" 
-            onPress={() => router.push('/security' as any)} 
-        />
-        <MenuItem 
-            icon={Bell} 
-            label="Notifications" 
-            onPress={() => router.push('/notifications-settings' as any)} 
-        />
-      </View>
+      {loading ? (
+        // Menu skeleton
+        <View style={styles.menuSection}>
+          {[1, 2, 3, 4, 5].map(i => (
+            <View key={i} style={[styles.menuItemSkeleton, { backgroundColor: colors.surface }]}>
+              <Skeleton width={40} height={40} borderRadius={12} style={{ marginRight: 12 }} />
+              <Skeleton width="55%" height={14} borderRadius={7} />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <>
+          <View style={styles.menuSection}>
+            <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>ACCOUNT SETTINGS</Text>
+            <MenuItem 
+                icon={User} 
+                label="Personal Information" 
+                onPress={() => router.push('/edit-profile' as any)} 
+            />
+            <MenuItem 
+                icon={Lock} 
+                label="Security & PIN" 
+                onPress={() => router.push('/security' as any)} 
+            />
+            <MenuItem 
+                icon={Bell} 
+                label="Notifications" 
+                onPress={() => router.push('/notifications-settings' as any)} 
+            />
+          </View>
 
-      <View style={styles.menuSection}>
-        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>PREFERENCES</Text>
-        <MenuItem 
-            icon={Moon} 
-            label="Dark Mode" 
-            rightContent={
-                <Switch 
-                    value={mode === 'dark'} 
-                    onValueChange={(val) => setTheme(val ? 'dark' : 'light')}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor="white"
-                />
-            }
-        />
-      </View>
+          <View style={styles.menuSection}>
+            <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>PREFERENCES</Text>
+            <MenuItem 
+                icon={Moon} 
+                label="Dark Mode" 
+                rightContent={
+                    <Switch 
+                        value={mode === 'dark'} 
+                        onValueChange={(val) => setTheme(val ? 'dark' : 'light')}
+                        trackColor={{ false: colors.border, true: colors.primary }}
+                        thumbColor="white"
+                    />
+                }
+            />
+          </View>
 
-      <View style={styles.menuSection}>
-        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>SUPPORT</Text>
-        <MenuItem 
-            icon={Question} 
-            label="Help & Support" 
-            onPress={() => router.push('/help-support' as any)} 
-        />
-        <MenuItem 
-            icon={Info} 
-            label="About Saadawa" 
-            onPress={() => router.push('/about' as any)} 
-        />
-      </View>
+          <View style={styles.menuSection}>
+            <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>SUPPORT</Text>
+            <MenuItem 
+                icon={Question} 
+                label="Help & Support" 
+                onPress={() => router.push('/help-support' as any)} 
+            />
+            <MenuItem 
+                icon={Info} 
+                label="About Saadawa" 
+                onPress={() => router.push('/about' as any)} 
+            />
+          </View>
+        </>
+      )}
 
       <TouchableOpacity 
         style={[styles.logoutBtn, { borderColor: colors.error }]} 
@@ -256,6 +310,13 @@ const styles = StyleSheet.create({
   },
   menuSection: {
     marginBottom: 32,
+  },
+  menuItemSkeleton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 8,
   },
   sectionTitle: {
     marginBottom: 12,

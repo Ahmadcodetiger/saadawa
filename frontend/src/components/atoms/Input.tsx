@@ -43,18 +43,18 @@ export const Input: React.FC<InputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  // Floating label animation
-  const labelAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
+  // Floating label animation - float if value exists or placeholder is present
+  const labelAnim = useRef(new Animated.Value(value || props.placeholder ? 1 : 0)).current;
 
   // React to value changes (e.g. async data loading)
   useEffect(() => {
-    if (value && !isFocused) {
+    if ((value || props.placeholder) && !isFocused) {
       Animated.timing(labelAnim, {
         toValue: 1,
         duration: 200,
         useNativeDriver: false,
       }).start();
-    } else if (!value && !isFocused) {
+    } else if (!value && !props.placeholder && !isFocused) {
       Animated.timing(labelAnim, {
         toValue: 0,
         duration: 200,
@@ -75,7 +75,7 @@ export const Input: React.FC<InputProps> = ({
 
   const handleBlur = (e: any) => {
     setIsFocused(false);
-    if (!value) {
+    if (!value && !props.placeholder) {
       Animated.timing(labelAnim, {
         toValue: 0,
         duration: 200,
