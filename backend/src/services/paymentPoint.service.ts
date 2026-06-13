@@ -35,7 +35,6 @@ class PaymentPointService {
         businessId: this.businessId,
       };
 
-      // optional identity fields
       if (userData.idType && userData.idNumber) {
         requestData.idType = userData.idType;
         requestData.idNumber = userData.idNumber;
@@ -53,29 +52,28 @@ class PaymentPointService {
 
       const data = response.data;
 
-      // If bank accounts are empty, log and try fetching existing accounts
+      // If bank accounts are empty, the customer likely already exists on PaymentPoint.
+      // Attempt to fetch their existing reserved accounts.
       if (!data.bankAccounts || data.bankAccounts.length === 0) {
-        console.warn('⚠️ PaymentPoint returned empty bankAccounts. Errors:', data.errors);
-        console.warn('⚠️ Attempting to fetch existing accounts for customer:', data.customer?.customer_id);
+        console.warn('⚠️ bankAccounts empty — customer may already exist. Fetching existing accounts...');
 
-        if (data.customer?.customer_id) {
-          const existingAccounts = await this.getCustomerAccounts(data.customer.customer_id);
+        const customerId = data.customer?.customer_id;
+        const email = userData.email;
+
+        if (customerId || email) {
+          const existingAccounts = await this.fetchExistingAccounts({ customerId, email });
           if (existingAccounts && existingAccounts.length > 0) {
-            console.log('✅ Found existing bank accounts via fallback fetch:', existingAccounts);
+            console.log('✅ Fetched existing bank accounts:', existingAccounts);
             data.bankAccounts = existingAccounts;
           } else {
-            console.error('❌ No existing accounts found either. Bank codes may not be enabled on this merchant account.');
+            console.error('❌ Could not fetch existing accounts. Manual intervention may be needed.');
           }
         }
       }
 
-      return {
-        success: true,
-        data,
-      };
+      return { success: true, data };
     } catch (error: any) {
       console.log('❌ PaymentPoint Error:', error.response?.data || error.message);
-
       return {
         success: false,
         message: error.response?.data?.message || 'Request failed',
@@ -85,37 +83,61 @@ class PaymentPointService {
   }
 
   /**
-   * Attempt to fetch existing bank accounts for a customer who was already registered.
-   * Called as a fallback when createVirtualAccount returns bankAccounts: [].
+   * Try multiple PaymentPoint endpoints to fetch existing reserved accounts
+   * for a customer that was already registered.
    */
-  async getCustomerAccounts(customerId: string): Promise<any[]> {
-    try {
-      // Try common PaymentPoint endpoints for fetching customer accounts
-      const endpoints = [
+  async fetchExistingAccounts({
+    customerId,
+    email,
+  }: {
+    customerId?: string;
+    email?: string;
+  }): Promise<any[]> {
+    // Endpoint candidates based on common PaymentPoint API patterns
+    const endpoints: string[] = [];
+
+    if (customerId) {
+      endpoints.push(
         `${this.baseURL}/getCustomerAccounts/${customerId}`,
         `${this.baseURL}/customer/${customerId}/accounts`,
-        `${this.baseURL}/virtualAccount/${customerId}`,
-      ];
-
-      for (const url of endpoints) {
-        try {
-          console.log(`🔍 Trying endpoint: ${url}`);
-          const response = await axios.get(url, { headers: this.headers });
-          const accounts = response.data?.bankAccounts || response.data?.data?.bankAccounts || response.data?.accounts;
-          if (accounts && accounts.length > 0) {
-            return accounts;
-          }
-        } catch (e: any) {
-          // Endpoint doesn't exist or returned error — try next
-          console.warn(`  ↳ ${url} failed: ${e.response?.status} ${e.response?.data?.message || e.message}`);
-        }
-      }
-
-      return [];
-    } catch (error: any) {
-      console.error('❌ getCustomerAccounts error:', error.message);
-      return [];
+        `${this.baseURL}/customer/${customerId}`,
+        `${this.baseURL}/virtualAccount/customer/${customerId}`,
+        `${this.baseURL}/reservedAccount/${customerId}`,
+      );
     }
+    if (email) {
+      endpoints.push(
+        `${this.baseURL}/getCustomerByEmail?email=${encodeURIComponent(email)}`,
+        `${this.baseURL}/customer?email=${encodeURIComponent(email)}`,
+      );
+    }
+
+    for (const url of endpoints) {
+      try {
+        console.log(`🔍 Trying: GET ${url}`);
+        const response = await axios.get(url, { headers: this.headers });
+        const d = response.data;
+
+        // Accept any shape that has an accounts array
+        const accounts =
+          d?.bankAccounts ||
+          d?.data?.bankAccounts ||
+          d?.accounts ||
+          d?.data?.accounts ||
+          d?.reservedAccounts;
+
+        if (accounts && accounts.length > 0) {
+          console.log(`✅ Found accounts at: ${url}`);
+          return accounts;
+        }
+      } catch (e: any) {
+        const status = e.response?.status;
+        const msg = e.response?.data?.message || e.message;
+        console.warn(`  ↳ ${url} → ${status ?? 'ERR'}: ${msg}`);
+      }
+    }
+
+    return [];
   }
 }
 
