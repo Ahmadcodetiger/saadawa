@@ -4,6 +4,8 @@ export interface PaymentPointCreateData {
   email: string;
   name: string;
   phoneNumber: string;
+  idType?: 'bvn' | 'nin';
+  idNumber?: string;
 }
 
 export interface PaymentPointAccount {
