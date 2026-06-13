@@ -8,7 +8,7 @@ import smeplugService from '../services/smeplug.service.js';
 import topupmateService from '../services/topupmate.service.js';
 import { WalletService } from '../services/wallet.service.js';
 import { AuthRequest } from '../types/index.js';
-import { normalizeNetwork } from '../utils/network.js';
+import { normalizeNetwork, getNetworkName } from '../utils/network.js';
 import { ApiResponse } from '../utils/response.js';
 
 // TopupMate uses network names like 'mtn', 'airtel', 'glo', '9mobile'
@@ -242,9 +242,9 @@ export class BillPaymentController {
 
         // Check for success - TopupMate returns various formats
         const isSuccess = 
-          result.status === 'success' || 
-          result.status === true || 
-          result.status === 'true' ||
+          (result.status as any) === 'success' || 
+          (result.status as any) === true || 
+          (result.status as any) === 'true' ||
           result.code === '000' ||
           result.success === true;
 
