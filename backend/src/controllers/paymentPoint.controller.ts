@@ -60,9 +60,17 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
     }
 
     if (!result.data || !result.data.bankAccounts || !result.data.bankAccounts[0]) {
-      return res.status(500).json({
+      // PaymentPoint created the customer but failed to provision bank accounts.
+      // Surface the actual error messages from the API response.
+      const ppErrors: string[] = result.data?.errors || [];
+      const errorMessage = ppErrors.length > 0
+        ? ppErrors.join(' | ')
+        : 'PaymentPoint could not provision a bank account at this time. Please try again later.';
+
+      return res.status(400).json({
         success: false,
-        message: 'Invalid response from PaymentPoint',
+        message: errorMessage,
+        details: ppErrors,
       });
     }
 
