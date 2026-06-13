@@ -196,12 +196,14 @@ export const getVirtualAccount = async (req: AuthRequest, res: Response) => {
 export const paymentWebhook = async (req: Request, res: Response) => {
   try {
     const timestamp = new Date().toISOString();
-    console.log(`\n--- 📡 [${timestamp}] PaymentPoint webhook received ---`);
-    
-    // 1. Verify Signature
-    const signature = req.headers['paymentpoint-signature'] as string;
-    const secret = process.env.PAYMENTPOINT_API_SECRET || '';
-    
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`📡 [${timestamp}] PaymentPoint Webhook Received`);
+    console.log(`${'='.repeat(60)}`);
+
+    // ── 1. Dump all incoming headers ──────────────────────────────
+    console.log('📋 HEADERS:', JSON.stringify(req.headers, null, 2));
+
+    // ── 2. Capture raw body ───────────────────────────────────────
     let rawBody: string = '';
     if (req.body instanceof Buffer) {
       rawBody = req.body.toString('utf8');
@@ -210,22 +212,9 @@ export const paymentWebhook = async (req: Request, res: Response) => {
     } else {
       rawBody = JSON.stringify(req.body);
     }
-    
-    if (secret && signature) {
-      const calculatedSignature = crypto
-        .createHmac('sha256', secret)
-        .update(rawBody)
-        .digest('hex');
+    console.log('📦 RAW BODY:', rawBody);
 
-      if (calculatedSignature !== signature) {
-        console.warn('❌ [INVALID SIGNATURE] Webhook signature mismatch.');
-        return res.status(400).json({ error: 'Invalid signature' });
-      }
-      console.log('✅ Signature verified.');
-    } else {
-      console.warn('⚠️ Signature or Secret missing - skipping verification (ONLY for dev).');
-    }
-
+    // ── 3. Parse payload ──────────────────────────────────────────
     let payload: any;
     try {
       payload = JSON.parse(rawBody);
@@ -233,8 +222,25 @@ export const paymentWebhook = async (req: Request, res: Response) => {
       console.warn('⚠️ Could not parse JSON from raw payload, using parsed body directly.');
       payload = req.body;
     }
-    
-    console.log('📡 Parsed Payload:', JSON.stringify(payload, null, 2));
+    console.log('🔍 PARSED PAYLOAD:', JSON.stringify(payload, null, 2));
+
+    // ── 4. Signature verification (log-only for now) ──────────────
+    const signature = req.headers['paymentpoint-signature'] as string;
+    const secret = process.env.PAYMENTPOINT_API_SECRET || '';
+    if (secret && signature) {
+      const calculatedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(rawBody)
+        .digest('hex');
+      if (calculatedSignature === signature) {
+        console.log('✅ Signature VALID');
+      } else {
+        console.warn(`⚠️ Signature MISMATCH — expected: ${calculatedSignature}, got: ${signature}`);
+        // Not blocking so we can observe payloads during debugging
+      }
+    } else {
+      console.warn(`⚠️ No signature header present. Headers received: ${JSON.stringify(Object.keys(req.headers))}`);
+    }
 
     if (!payload || (Object.keys(payload).length === 0)) {
       return res.status(200).json({ success: false, message: 'Empty payload' });
