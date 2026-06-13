@@ -46,10 +46,40 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // ── KYC: BVN/NIN required by PalmPay ───────────────────────────
+    // Priority: request body → stored on user profile
+    const idType: 'bvn' | 'nin' | undefined =
+      req.body.idType || (user.bvn ? 'bvn' : user.nin ? 'nin' : undefined);
+    const idNumber: string | undefined =
+      req.body.idNumber || user.bvn || user.nin || undefined;
+
+    if (!idType || !idNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'BVN or NIN is required to create a virtual account. Please provide your idType ("bvn" or "nin") and idNumber (11 digits).',
+        requiresKyc: true,
+      });
+    }
+
+    // Persist the ID to the user profile so future calls work automatically
+    if (req.body.idNumber) {
+      if (idType === 'bvn' && !user.bvn) {
+        user.bvn = req.body.idNumber;
+        await user.save();
+        console.log(`💾 Saved BVN to user profile: ${userId}`);
+      } else if (idType === 'nin' && !user.nin) {
+        user.nin = req.body.idNumber;
+        await user.save();
+        console.log(`💾 Saved NIN to user profile: ${userId}`);
+      }
+    }
+
     const result = await paymentPointService.createVirtualAccount({
       email: user.email,
       name: `${user.first_name} ${user.last_name}`,
       phoneNumber: user.phone_number,
+      idType,
+      idNumber,
     });
 
     if (!result.success) {
@@ -60,8 +90,6 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
     }
 
     if (!result.data || !result.data.bankAccounts || !result.data.bankAccounts[0]) {
-      // PaymentPoint created the customer but failed to provision bank accounts.
-      // Surface the actual error messages from the API response.
       const ppErrors: string[] = result.data?.errors || [];
       const errorMessage = ppErrors.length > 0
         ? ppErrors.join(' | ')
@@ -73,6 +101,7 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
         details: ppErrors,
       });
     }
+
 
     const bankAccount = result.data.bankAccounts[0];
     
