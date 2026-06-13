@@ -61,11 +61,9 @@ class PaymentPointService {
         data: resData,
       };
     } catch (error: any) {
-      console.error('❌ PaymentPoint error:', error.response?.data || error.message);
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to create virtual account',
-      };
+  console.log("PAYMENTPOINT ERROR:", error.response?.data);
+  return res.status(400).json(error.response?.data);
+}
     }
   }
 }
