@@ -1,6 +1,7 @@
 export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -9,6 +10,7 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
     }
 
     const user = await User.findById(userId);
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -42,46 +44,47 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       phoneNumber: user.phone_number,
     });
 
-    // ❌ ONLY TRUE FAILURE (API call failed completely)
-    if (!result || (!result.success && !result.data?.customer)) {
+    // ❌ TRUE FAILURE ONLY
+    if (!result || !result.success) {
       return res.status(400).json({
         success: false,
-        message: result.message || 'Failed to create virtual account',
+        message: result?.message || 'Failed to create virtual account',
       });
     }
 
+    const customer = result.data?.customer;
     const bankAccount = result.data?.bankAccounts?.[0];
 
-    // ⚠️ PARTIAL SUCCESS (customer created, but no bank account)
+    // ⚠️ PARTIAL SUCCESS (customer created but no account yet)
     if (!bankAccount) {
-      console.warn('⚠️ PaymentPoint returned no bank account (partial success)');
-
       return res.status(200).json({
         success: true,
         partial: true,
-        message: 'Customer created but virtual account is still processing',
+        message: 'Customer created, virtual account is being generated',
         data: {
-          customer: result.data.customer,
+          customer,
           bankAccounts: [],
-          warnings: result.data.errors || [],
+          warnings: result.data?.errors || [],
         },
       });
     }
 
-    // ✅ FULL SUCCESS FLOW
+    const reference = customer?.customer_id || `REF_${Date.now()}`;
+
+    // ✅ SAVE VIRTUAL ACCOUNT
     const virtualAccount = new VirtualAccount({
       user: new mongoose.Types.ObjectId(userId),
       accountNumber: bankAccount.accountNumber,
       accountName: bankAccount.accountName,
       bankName: bankAccount.bankName,
       provider: 'paymentpoint',
-      reference: result.data.customer?.customer_id || `REF_${Date.now()}`,
+      reference,
       status: 'active',
       metadata: {
-        virtualAccountName: result.data.customer?.customer_name,
+        virtualAccountName: customer?.customer_name,
         virtualAccountNo: bankAccount.accountNumber,
         identityType: 'NIN',
-        licenseNumber: result.data.customer?.customer_id,
+        licenseNumber: customer?.customer_id,
       },
     });
 
@@ -91,20 +94,24 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       account_number: bankAccount.accountNumber,
       account_name: bankAccount.accountName,
       bank_name: bankAccount.bankName,
-      account_reference: result.data.customer?.customer_id || `REF_${Date.now()}`,
+      account_reference: reference,
       provider: 'paymentpoint',
       status: 'active',
     };
 
     await user.save();
 
-    let wallet = await Wallet.findOne({ user_id: new mongoose.Types.ObjectId(userId) });
+    let wallet = await Wallet.findOne({
+      user_id: new mongoose.Types.ObjectId(userId),
+    });
+
     if (!wallet) {
       wallet = new Wallet({
         user_id: new mongoose.Types.ObjectId(userId),
         balance: 0,
         currency: 'NGN',
       });
+
       await wallet.save();
     }
 
@@ -112,14 +119,14 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       accountNumber: bankAccount.accountNumber,
       accountName: bankAccount.accountName,
       bankName: bankAccount.bankName,
-      bankCode: bankAccount.bankCode || '',
-      customerId: result.data.customer?.customer_id,
-      reference: result.data.customer?.customer_id,
+      bankCode: bankAccount.bankCode || 'N/A',
+      customerId: customer?.customer_id,
+      reference,
       provider: 'paymentpoint',
       status: 'active',
     };
 
-    console.log('📡 [Virtual Account Created]:', outgoingData);
+    console.log('📡 Virtual Account Created:', outgoingData);
 
     return res.status(201).json({
       success: true,
@@ -127,12 +134,12 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       data: outgoingData,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create virtual account error:', error);
 
     return res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: error?.message || 'Internal server error',
     });
   }
 };
