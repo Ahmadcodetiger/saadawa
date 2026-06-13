@@ -13,12 +13,15 @@ class PaymentPointService {
     this.businessId = process.env.PAYMENTPOINT_BUSINESS_ID || '';
   }
 
-  async createVirtualAccount(userData: { email: string; name: string; phoneNumber: string }) {
+  async createVirtualAccount(userData: {
+    email: string;
+    name: string;
+    phoneNumber: string;
+  }) {
     try {
       const headers = {
-        'Authorization': `Bearer ${this.apiSecret}`,
         'Content-Type': 'application/json',
-        'api-key': this.apiKey,
+        'api-key': this.apiKey, // KEEP ONLY ONE AUTH METHOD
       };
 
       let formattedPhone = userData.phoneNumber.replace(/\D/g, '');
@@ -30,29 +33,26 @@ class PaymentPointService {
         email: userData.email,
         name: userData.name,
         phoneNumber: formattedPhone,
-
-        bankCode: ['20946', '20897'],
         businessId: this.businessId,
       };
 
-      console.log('🏦 Creating PaymentPoint virtual account:', requestData);
+      console.log('🏦 PaymentPoint request:', requestData);
 
       const response = await axios.post(
-        `${this.baseURL}/createVirtualAccount`,
+        `${this.baseURL}/customer/create-virtual-account`,
         requestData,
         { headers }
       );
 
-      console.log('✅ Virtual account created:', response.data);
-      
+      console.log('✅ PaymentPoint response:', response.data);
+
       const resData = response.data;
 
-      // PaymentPoint API returns success/error status in the body
       if (resData.status !== 'success' && resData.status !== true) {
         return {
           success: false,
-          message: resData.message || 'PaymentPoint returned an error',
-          data: resData
+          message: resData.message || 'PaymentPoint error',
+          data: resData,
         };
       }
 
@@ -61,9 +61,13 @@ class PaymentPointService {
         data: resData,
       };
     } catch (error: any) {
-  console.log("PAYMENTPOINT ERROR:", error.response?.data);
-  return res.status(400).json(error.response?.data);
-}
+      console.log('❌ PAYMENTPOINT ERROR:', error.response?.data || error.message);
+
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Request failed',
+        error: error.response?.data || error.message,
+      };
     }
   }
 }
