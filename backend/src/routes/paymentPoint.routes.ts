@@ -4,7 +4,7 @@ import {
   createVirtualAccount, 
   getVirtualAccount, 
   paymentWebhook 
-} from '../controllers/paymentPoint.controller.js';
+} from '../controllers/paymentPoint.controller';
 
 const router = express.Router();
 
