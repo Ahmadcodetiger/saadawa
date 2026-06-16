@@ -19,10 +19,12 @@ import {
   Wallet
 } from './types';
 
-// Local development - use computer's IP for physical devices
-//export const API_BASE_URL = 'http://10.33.189.112:8000/api'; // Local IP for Android
-// export const API_BASE_URL = 'http://localhost:8000/api'; // Local Backend
-export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // Production
+// ─── API Base URL ────────────────────────────────────────────────────────────
+// Switch between these as needed:
+export const API_BASE_URL = 'http://10.115.240.9:5000/api'; // ← LOCAL (current machine on LAN)
+// export const API_BASE_URL = 'http://localhost:5000/api';     // ← LOCAL (iOS simulator only)
+// export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // ← PRODUCTION
+// ─────────────────────────────────────────────────────────────────────────────
 
 
 // Log the API URL being used
