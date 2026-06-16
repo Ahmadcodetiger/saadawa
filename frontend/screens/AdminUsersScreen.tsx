@@ -79,13 +79,13 @@ export default function AdminUsersScreen() {
   );
 
   return (
-    <ScreenWrapper noScroll>
+    <ScreenWrapper scroll={false}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
             <Text variant="headingMedium" bold>Users</Text>
             <Text variant="bodySmall" color="textSecondary">Manage system accounts ({total})</Text>
         </View>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/admin-notifications')}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/admin-notifications' as any)}>
             <Bell size={22} color={colors.textPrimary} weight="duotone" />
         </TouchableOpacity>
       </View>

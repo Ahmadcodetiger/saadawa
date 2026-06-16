@@ -176,30 +176,30 @@ export default function HomeScreen() {
     {
       id: 'airtime',
       label: 'Airtime',
-      icon: <PhoneCall size={28} color="#5B6AF0" weight="duotone" />,
+      icon: <PhoneCall size={28} color={isDark ? '#818CF8' : '#5B6AF0'} weight="duotone" />,
       route: '/buy-airtime',
-      color: isDark ? 'rgba(91,106,240,0.18)' : '#EEF0FF'
+      color: isDark ? 'rgba(129, 140, 248, 0.22)' : '#EEF0FF'
     },
     {
       id: 'data',
       label: 'Data',
-      icon: <WifiHigh size={28} color="#3B9EEB" weight="duotone" />,
+      icon: <WifiHigh size={28} color={isDark ? '#60A5FA' : '#3B9EEB'} weight="duotone" />,
       route: '/buy-data',
-      color: isDark ? 'rgba(59,158,235,0.18)' : '#E8F5FF'
+      color: isDark ? 'rgba(96, 165, 250, 0.22)' : '#E8F5FF'
     },
     {
       id: 'tv',
       label: 'TV Cable',
-      icon: <Television size={28} color="#E040A0" weight="duotone" />,
+      icon: <Television size={28} color={isDark ? '#F472B6' : '#E040A0'} weight="duotone" />,
       route: '/pay-bills',
-      color: isDark ? 'rgba(224,64,160,0.18)' : '#FFF0F8'
+      color: isDark ? 'rgba(244, 114, 182, 0.22)' : '#FFF0F8'
     },
     {
       id: 'electricity',
       label: 'Electricity',
-      icon: <Lightning size={28} color="#F0A030" weight="duotone" />,
+      icon: <Lightning size={28} color={isDark ? '#FBBF24' : '#F0A030'} weight="duotone" />,
       route: '/pay-bills',
-      color: isDark ? 'rgba(240,160,48,0.18)' : '#FFF8E8'
+      color: isDark ? 'rgba(251, 191, 36, 0.22)' : '#FFF8E8'
     },
   ];
 
@@ -230,7 +230,7 @@ export default function HomeScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
-        <TouchableOpacity onPress={() => router.push('/profile')}>
+        <TouchableOpacity onPress={() => router.push('/profile' as any)}>
           <Image
             source={{ uri: user?.profile_image || user?.avatar || 'https://i.pravatar.cc/150?img=12' }}
             style={styles.avatar}
@@ -244,11 +244,78 @@ export default function HomeScreen() {
 
       <TouchableOpacity
         style={[styles.iconBtn, { backgroundColor: colors.surface }]}
-        onPress={() => router.push('/notifications')}
+        onPress={() => router.push('/notifications' as any)}
       >
         <Bell size={22} color={colors.textPrimary} weight="duotone" />
         {unreadCount > 0 && <View style={[styles.badge, { backgroundColor: '#FF3B30' }]} />}
       </TouchableOpacity>
+    </View>
+  );
+
+  const renderSkeleton = () => (
+    <View style={{ paddingHorizontal: 20 }}>
+      {/* Header Skeleton */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Skeleton width={48} height={48} borderRadius={24} style={{ marginRight: 12 }} />
+          <View style={styles.greeting}>
+            <Skeleton width={80} height={12} borderRadius={4} style={{ marginBottom: 6 }} />
+            <Skeleton width={120} height={20} borderRadius={6} />
+          </View>
+        </View>
+        <Skeleton width={48} height={48} borderRadius={14} />
+      </View>
+
+      {/* Wallet Card Skeleton */}
+      <View style={styles.walletSection}>
+        <Skeleton width="100%" height={210} borderRadius={24} />
+      </View>
+
+      {/* Services Grid Skeleton */}
+      <View style={styles.servicesSection}>
+        <View style={styles.sectionHeader}>
+          <Skeleton width={100} height={18} borderRadius={4} />
+          <Skeleton width={50} height={14} borderRadius={4} />
+        </View>
+        <View style={styles.servicesGrid}>
+          {Array(4).fill(0).map((_, i) => (
+            <View key={i} style={{ width: '25%', padding: 8, alignItems: 'center' }}>
+              <Skeleton width={56} height={56} borderRadius={16} style={{ marginBottom: 8 }} />
+              <Skeleton width={50} height={10} borderRadius={4} />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Promo Cards Skeletons */}
+      <View style={styles.promoSection}>
+        <Skeleton width="100%" height={90} borderRadius={20} style={{ marginBottom: 20 }} />
+        <Skeleton width="100%" height={90} borderRadius={20} />
+      </View>
+
+      {/* Transactions Skeleton */}
+      <View style={styles.transactionSection}>
+        <View style={styles.sectionHeader}>
+          <Skeleton width={120} height={18} borderRadius={4} />
+          <Skeleton width={50} height={14} borderRadius={4} />
+        </View>
+        <View style={{ gap: 16, marginTop: 8 }}>
+          {Array(3).fill(0).map((_, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Skeleton width={44} height={44} borderRadius={22} style={{ marginRight: 12 }} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Skeleton width="60%" height={14} borderRadius={4} />
+                  <Skeleton width="40%" height={10} borderRadius={4} />
+                </View>
+              </View>
+              <Skeleton width={60} height={16} borderRadius={4} />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={{ height: 100 }} />
     </View>
   );
 
@@ -260,20 +327,23 @@ export default function HomeScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
     >
-      <View style={{ paddingHorizontal: 20 }}>
-        {renderHeader()}
+      {loading && !refreshing ? (
+        renderSkeleton()
+      ) : (
+        <View style={{ paddingHorizontal: 20 }}>
+          {renderHeader()}
 
         <View style={styles.walletSection}>
           <WalletCard 
             balance={wallet?.balance || 0}
-            onFund={() => router.push('/add-money')}
+            onFund={() => router.push('/add-money' as any)}
           />
         </View>
 
         <View style={styles.servicesSection}>
           <View style={styles.sectionHeader}>
             <Text variant="headingSmall" bold style={{ fontSize: 18, color: colors.textPrimary }}>Our Services</Text>
-            <TouchableOpacity onPress={() => router.push('/more')}>
+            <TouchableOpacity onPress={() => router.push('/more' as any)}>
               <Text variant="labelMedium" color="primary" bold style={{ fontSize: 14 }}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -347,7 +417,7 @@ export default function HomeScreen() {
         <View style={styles.transactionSection}>
            <View style={styles.sectionHeader}>
               <Text variant="headingSmall" bold>Recent Activity</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/transactions' as any)}>
                 <Text variant="labelMedium" color="primary" bold>See All</Text>
               </TouchableOpacity>
            </View>
@@ -372,6 +442,7 @@ export default function HomeScreen() {
 
         <View style={{ height: 100 }} />
       </View>
+      )}
 
       <AdminInfoModal 
         visible={!!adminInfo}

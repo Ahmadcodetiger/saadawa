@@ -67,4 +67,22 @@ export const paymentPointService = {
       throw error.response?.data || { message: error.message };
     }
   },
+
+  /**
+   * Sync missing bank accounts (e.g. add OPay if only PalmPay exists)
+   */
+  syncVirtualAccounts: async (data: { idType: 'bvn' | 'nin'; idNumber: string }): Promise<any> => {
+    try {
+      console.log('🔄 Syncing virtual accounts...');
+      const response = await api.post<PaymentPointResponse<any>>('/payment-point/sync-virtual-accounts', data);
+
+      if (response.data.success) {
+        return response.data;
+      }
+      throw new Error(response.data.message || 'Failed to sync accounts');
+    } catch (error: any) {
+      console.error('❌ Failed to sync virtual accounts:', error);
+      throw error.response?.data || { message: error.message };
+    }
+  },
 };

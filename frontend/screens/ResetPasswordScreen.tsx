@@ -65,7 +65,7 @@ const ResetPasswordScreen: React.FC = () => {
         Alert.alert(
           "✅ Success", 
           "Your password has been reset successfully. You can now log in.",
-          [{ text: "Log In", onPress: () => router.replace("/login") }]
+          [{ text: "Log In", onPress: () => router.replace("/login" as any) }]
         );
       } else {
         Alert.alert("❌ Error", response.message || "Failed to reset password.");

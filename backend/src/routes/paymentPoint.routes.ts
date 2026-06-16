@@ -4,7 +4,8 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { 
   createVirtualAccount, 
   getVirtualAccount, 
-  paymentWebhook 
+  paymentWebhook,
+  syncVirtualAccounts
 } from '../controllers/paymentPoint.controller.js';
 
 const router = express.Router();
@@ -38,6 +39,13 @@ router.post(
   paymentWebhook
 );
 
+// Sync missing bank accounts for existing virtual account holders
+router.post(
+  '/sync-virtual-accounts',
+  authMiddleware,
+  syncVirtualAccounts
+);
+
 // Test endpoint
 router.get('/test', (req, res) => {
   res.json({
@@ -46,6 +54,7 @@ router.get('/test', (req, res) => {
     endpoints: {
       createVirtualAccount: 'POST /api/payment-point/create-virtual-account',
       getVirtualAccount: 'GET /api/payment-point/virtual-account',
+      syncVirtualAccounts: 'POST /api/payment-point/sync-virtual-accounts',
       webhook: 'POST /api/payment-point/webhook'
     }
   });

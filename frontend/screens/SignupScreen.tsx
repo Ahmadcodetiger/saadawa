@@ -86,7 +86,7 @@ const SignupScreen: React.FC = () => {
 
       if (response.success) {
         Alert.alert("🎉 Welcome Aboard!", `Your account has been created successfully, ${first_name}!`, [
-          { text: "Get Started", onPress: () => router.replace("/(tabs)") }
+          { text: "Get Started", onPress: () => router.replace("/(tabs)" as any) }
         ]);
       }
     } catch (error: any) {
@@ -199,7 +199,7 @@ const SignupScreen: React.FC = () => {
           <Text variant="bodyMedium" color="textSecondary">
             Already have an account?{' '}
           </Text>
-          <TouchableOpacity onPress={() => router.push('/login')}>
+          <TouchableOpacity onPress={() => router.push('/login' as any)}>
             <Text variant="bodyMedium" color="primary" bold>Log In</Text>
           </TouchableOpacity>
         </View>

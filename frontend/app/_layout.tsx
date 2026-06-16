@@ -25,10 +25,10 @@ function AuthLayout() {
     if (!isLoading) {
       if (!isAuthenticated && !inAuthGroup) {
         // Redirect to the login page if not authenticated
-        router.replace('/login');
+        router.replace('/login' as any);
       } else if (isAuthenticated && inAuthGroup) {
         // Redirect to the home page if authenticated and trying to access auth pages
-        router.replace('/(tabs)');
+        router.replace('/(tabs)' as any);
       }
     }
   }, [isAuthenticated, isLoading, segments]);

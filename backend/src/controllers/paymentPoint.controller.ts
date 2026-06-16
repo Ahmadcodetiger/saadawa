@@ -88,13 +88,20 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
     }
 
     if (!result.data || !result.data.bankAccounts || !result.data.bankAccounts[0]) {
-      return res.status(500).json({
+      const errorMsg = result.data?.errors?.join(', ') || 'Failed to generate virtual accounts on PaymentPoint';
+      return res.status(400).json({
         success: false,
-        message: 'Invalid response from PaymentPoint',
+        message: errorMsg,
       });
     }
 
     const bankAccount = result.data.bankAccounts[0];
+    const accountsList = result.data.bankAccounts.map((acc: any) => ({
+      accountNumber: acc.accountNumber,
+      accountName: acc.accountName,
+      bankName: acc.bankName,
+      bankCode: acc.bankCode || ((acc.bankName || '').toLowerCase().includes('palm') ? '999991' : '999992')
+    }));
     
     const virtualAccount = new VirtualAccount({
       user: new mongoose.Types.ObjectId(userId),
@@ -108,7 +115,8 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
         virtualAccountName: result.data.customer?.customer_name,
         virtualAccountNo: bankAccount.accountNumber,
         identityType: idType.toUpperCase(),
-        licenseNumber: result.data.customer?.customer_id
+        licenseNumber: result.data.customer?.customer_id,
+        accounts: accountsList
       }
     });
     
@@ -142,7 +150,8 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       customerId: virtualAccount.reference || (virtualAccount as any).account_reference || '',
       reference: virtualAccount.reference,
       provider: virtualAccount.provider,
-      status: virtualAccount.status
+      status: virtualAccount.status,
+      accounts: accountsList
     };
 
     console.log('📡 [Backend] Outgoing Account (Create):', JSON.stringify(outgoingData, null, 2));
@@ -185,6 +194,22 @@ export const getVirtualAccount = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Only return accounts for currently enabled banks
+    const enabledBanksStr = process.env.PAYMENTPOINT_ENABLED_BANKS || '20946,20897';
+    const enabledBankCodes = enabledBanksStr.split(',').map(s => s.trim());
+    
+    const allAccounts = virtualAccount.metadata?.accounts || [
+      {
+        accountNumber: virtualAccount.accountNumber,
+        accountName: virtualAccount.accountName,
+        bankName: virtualAccount.bankName,
+        bankCode: (virtualAccount.bankName || '').toLowerCase().includes('palm') ? '20946' : '20897'
+      }
+    ];
+    
+    // Filter to only show enabled banks
+    const filteredAccounts = allAccounts.filter((acc: any) => enabledBankCodes.includes(acc.bankCode));
+
     const outgoingData = {
       accountNumber: virtualAccount.accountNumber || (virtualAccount as any).account_number || '',
       accountName: virtualAccount.accountName || (virtualAccount as any).account_name || '',
@@ -193,7 +218,8 @@ export const getVirtualAccount = async (req: AuthRequest, res: Response) => {
       customerId: virtualAccount.reference || (virtualAccount as any).account_reference || '',
       reference: virtualAccount.reference,
       provider: virtualAccount.provider,
-      status: virtualAccount.status
+      status: virtualAccount.status,
+      accounts: filteredAccounts
     };
 
     console.log('📡 [Backend] Outgoing Virtual Account Data:', JSON.stringify(outgoingData, null, 2));
@@ -361,5 +387,125 @@ export const paymentWebhook = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Webhook error:', error);
     return res.status(200).json({ success: true });
+  }
+};
+
+export const syncVirtualAccounts = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const existingAccount = await VirtualAccount.findOne({
+      user: new mongoose.Types.ObjectId(userId),
+      provider: 'paymentpoint'
+    });
+
+    if (!existingAccount) {
+      return res.status(400).json({
+        success: false,
+        message: 'No virtual account found. Please create one first.',
+      });
+    }
+
+    // Check which banks are enabled vs already present
+    const enabledBanksStr = process.env.PAYMENTPOINT_ENABLED_BANKS || '20946,20897';
+    const enabledBankCodes = enabledBanksStr.split(',').map(s => s.trim());
+    const existingAccounts = existingAccount.metadata?.accounts || [];
+    const existingBankCodes = existingAccounts.map((acc: any) => acc.bankCode);
+
+    const missingBanks = enabledBankCodes.filter(code => !existingBankCodes.includes(code));
+
+    if (missingBanks.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'All enabled bank accounts are already synced.',
+        data: {
+          accounts: existingAccounts,
+        },
+      });
+    }
+
+    console.log(`🔄 Syncing missing banks for user ${user.email}:`, missingBanks);
+
+    // Need KYC info for the API call
+    const { idType, idNumber } = req.body as { idType?: string; idNumber?: string };
+    if (!idType || !idNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Identity verification (BVN/NIN) is required to sync accounts.',
+      });
+    }
+
+    const sanitizedIdNumber = idNumber.replace(/\D/g, '');
+
+    // Call PaymentPoint to create accounts for missing banks only
+    const result = await paymentPointService.createVirtualAccount({
+      email: user.email,
+      name: `${user.first_name} ${user.last_name}`,
+      phoneNumber: user.phone_number,
+      idType: idType as 'bvn' | 'nin',
+      idNumber: sanitizedIdNumber,
+    });
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message || 'Failed to sync virtual accounts',
+      });
+    }
+
+    // Merge new bank accounts with existing ones
+    const newBankAccounts = result.data?.bankAccounts || [];
+    const mergedAccounts = [...existingAccounts];
+
+    for (const newAcc of newBankAccounts) {
+      const already = mergedAccounts.find((a: any) => a.bankCode === newAcc.bankCode);
+      if (!already) {
+        mergedAccounts.push({
+          accountNumber: newAcc.accountNumber,
+          accountName: newAcc.accountName,
+          bankName: newAcc.bankName,
+          bankCode: newAcc.bankCode,
+        });
+      }
+    }
+
+    // Update the DB record
+    existingAccount.metadata = {
+      ...(existingAccount.metadata || {}),
+      accounts: mergedAccounts,
+    };
+    existingAccount.markModified('metadata');
+    await existingAccount.save();
+
+    const errors = result.data?.errors || [];
+    const addedCount = mergedAccounts.length - existingAccounts.length;
+
+    console.log(`✅ Sync complete. Added ${addedCount} new accounts. Errors:`, errors);
+
+    return res.status(200).json({
+      success: true,
+      message: addedCount > 0
+        ? `Synced ${addedCount} new bank account(s) successfully.`
+        : (errors.length > 0 ? errors.join(', ') : 'No new accounts were added.'),
+      data: {
+        accounts: mergedAccounts,
+        errors,
+      },
+    });
+
+  } catch (error) {
+    console.error('Sync virtual accounts error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
   }
 };

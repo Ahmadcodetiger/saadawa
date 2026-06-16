@@ -11,19 +11,20 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import * as WebBrowser from 'expo-web-browser';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   PlusCircle,
   Copy,
   ShareNetwork,
   CheckCircle,
   Info,
-  Lightning,
-  Wallet,
-  CreditCard,
   IdentificationCard,
   X,
+  ArrowsClockwise,
+  Check,
+  WifiHigh,
 } from 'phosphor-react-native';
+import * as Haptics from 'expo-haptics';
 
 import { useAppTheme } from '../src/theme/ThemeContext';
 import { Text } from '../src/components/atoms/Text';
@@ -32,22 +33,23 @@ import { Input } from '../src/components/atoms/Input';
 import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
 import { useAlert } from '@/components/AlertContext';
 import { authService } from '@/services/auth.service';
-import { paymentService } from '@/services/payment.service';
 import { paymentPointService } from '@/services/paymentpoint.service';
-
-const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
 
 type IdType = 'bvn' | 'nin';
 
+interface NormalizedAccount {
+  account_number: string;
+  account_name: string;
+  bank_name: string;
+  status: string;
+}
+
 export default function AddMoneyScreen() {
   const router = useRouter();
-  const { colors, isDark } = useAppTheme();
-  const { showSuccess, showError, showInfo } = useAlert();
+  const { colors } = useAppTheme();
+  const { showSuccess, showError } = useAlert();
 
-  const [amount, setAmount] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState<string>('paymentpoint');
-  const [isLoading, setIsLoading] = useState(false);
-  const [virtualAccount, setVirtualAccount] = useState<any | null>(null);
+  const [virtualAccounts, setVirtualAccounts] = useState<NormalizedAccount[]>([]);
   const [isLoadingVirtualAccount, setIsLoadingVirtualAccount] = useState(true);
   const [isCreatingVirtualAccount, setIsCreatingVirtualAccount] = useState(false);
 
@@ -56,6 +58,9 @@ export default function AddMoneyScreen() {
   const [idType, setIdType] = useState<IdType>('bvn');
   const [idNumber, setIdNumber] = useState('');
   const [idNumberError, setIdNumberError] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMode, setSyncMode] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     loadVirtualAccount();
@@ -67,22 +72,31 @@ export default function AddMoneyScreen() {
       const response = await paymentPointService.getVirtualAccount();
 
       if (!response || (typeof response === 'object' && 'exists' in response && !response.exists)) {
-        setVirtualAccount(null);
+        setVirtualAccounts([]);
         return;
       }
 
       const responseData = (response as any)?.data?.data || (response as any)?.data || response;
 
       if (responseData && (!('exists' in responseData) || responseData.exists !== false)) {
-        const accNo = responseData?.accountNumber || responseData?.account_number || responseData?.virtualAccountNo;
-        setVirtualAccount({
-          account_number: accNo || 'Processing...',
-          account_name: responseData?.accountName || responseData?.account_name || responseData?.customerName || 'Processing...',
-          bank_name: responseData?.bankName || responseData?.bank_name || 'PALMPAY',
-          status: responseData?.status || 'active',
-        });
+        const accounts = responseData?.accounts || [
+          {
+            accountNumber: responseData?.accountNumber || responseData?.account_number || responseData?.virtualAccountNo,
+            accountName: responseData?.accountName || responseData?.account_name || responseData?.customerName,
+            bankName: responseData?.bankName || responseData?.bank_name || 'PalmPay',
+          }
+        ];
+        
+        const normalizedAccounts = accounts.map((acc: any) => ({
+          account_number: (acc.accountNumber || acc.account_number || '').trim(),
+          account_name: (acc.accountName || acc.account_name || responseData?.accountName || responseData?.account_name || '').trim(),
+          bank_name: (acc.bankName || acc.bank_name || 'PalmPay').replace(/\s*\(mock\)/gi, '').trim(),
+          status: acc.status || responseData?.status || 'active',
+        }));
+
+        setVirtualAccounts(normalizedAccounts);
       } else {
-        setVirtualAccount(null);
+        setVirtualAccounts([]);
       }
     } catch (error) {
       console.error('Error loading virtual account:', error);
@@ -99,13 +113,13 @@ export default function AddMoneyScreen() {
   };
 
   const handleIdNumberChange = (value: string) => {
-    // Only allow digits, limit to 11
     const digits = value.replace(/\D/g, '').slice(0, 11);
     setIdNumber(digits);
     if (idNumberError) setIdNumberError('');
   };
 
   const handleOpenKycModal = () => {
+    setSyncMode(false);
     setIdNumber('');
     setIdNumberError('');
     setShowKycModal(true);
@@ -119,7 +133,12 @@ export default function AddMoneyScreen() {
     }
 
     setShowKycModal(false);
-    await handleCreateVirtualAccount(idType, idNumber.replace(/\D/g, ''));
+    if (syncMode) {
+      await handleSync(idType, idNumber.replace(/\D/g, ''));
+      setSyncMode(false);
+    } else {
+      await handleCreateVirtualAccount(idType, idNumber.replace(/\D/g, ''));
+    }
   };
 
   const handleCreateVirtualAccount = async (kycIdType: IdType, kycIdNumber: string) => {
@@ -148,97 +167,261 @@ export default function AddMoneyScreen() {
     }
   };
 
-  const handleAddMoney = async () => {
-    const amountNum = parseFloat(amount.replace(/,/g, ''));
-    if (!amountNum || amountNum < 100) {
-      showError('Minimum amount is ₦100');
-      return;
-    }
+  const handleOpenSyncModal = () => {
+    setSyncMode(true);
+    setIdNumber('');
+    setIdNumberError('');
+    setShowKycModal(true);
+  };
 
-    if (selectedMethod === 'virtual') {
-      copyToClipboard(virtualAccount.account_number, 'Account number');
-      return;
-    }
-
-    setIsLoading(true);
+  const handleSync = async (kycIdType: IdType, kycIdNumber: string) => {
     try {
-      const response = await paymentService.initiatePayment({
-        amount: amountNum,
-        gateway: selectedMethod as any,
+      setIsSyncing(true);
+      const result = await paymentPointService.syncVirtualAccounts({
+        idType: kycIdType,
+        idNumber: kycIdNumber,
       });
 
-      if (response.success) {
-        const checkoutUrl = response.data.payment?.checkoutUrl;
-        if (checkoutUrl) {
-          await WebBrowser.openBrowserAsync(checkoutUrl);
-        }
+      if (result.data?.errors?.length > 0) {
+        showError(result.data.errors.join('\n'));
+      } else {
+        showSuccess(result.message || 'Accounts synced!');
       }
+      loadVirtualAccount();
     } catch (error: any) {
-      showError(error.message || 'Payment failed');
+      showError(error.message || 'Failed to sync accounts');
     } finally {
-      setIsLoading(false);
+      setIsSyncing(false);
     }
   };
 
-  const copyToClipboard = async (text: string, label: string) => {
-    await Clipboard.setStringAsync(text);
-    showSuccess(`${label} copied!`);
+  const formatAccountNumber = (num: string) => {
+    if (!num) return '';
+    const clean = num.replace(/\s/g, '');
+    if (clean.length === 10) {
+      return `${clean.slice(0, 3)}  ${clean.slice(3, 6)}  ${clean.slice(6)}`;
+    }
+    return clean;
   };
 
-  const shareDetails = async () => {
-    if (!virtualAccount) return;
-    const message = `Payment Details:\nBank: ${virtualAccount.bank_name}\nAcc No: ${virtualAccount.account_number}\nName: ${virtualAccount.account_name}`;
+  const copyToClipboard = async (text: string, label: string, index?: number) => {
+    await Clipboard.setStringAsync(text);
+    
+    if (Platform.OS !== 'web') {
+      try {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (err) {
+        console.log('Haptics failed', err);
+      }
+    }
+
+    if (index !== undefined) {
+      setCopiedIndex(index);
+      setTimeout(() => {
+        setCopiedIndex(null);
+      }, 2000);
+    } else {
+      showSuccess(`${label} copied!`);
+    }
+  };
+
+  const copyAllCardDetails = async (acc: NormalizedAccount, index: number) => {
+    const text = `Saadawa Wallet Funding:\nBank Name: ${acc.bank_name}\nAccount Number: ${acc.account_number}\nAccount Name: ${acc.account_name}`;
+    await Clipboard.setStringAsync(text);
+    
+    if (Platform.OS !== 'web') {
+      try {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (err) {
+        console.log('Haptics failed', err);
+      }
+    }
+    
+    showSuccess('All account details copied!');
+  };
+
+  const shareDetails = async (acc: NormalizedAccount) => {
+    if (Platform.OS !== 'web') {
+      try {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch (err) {
+        console.log('Haptics failed', err);
+      }
+    }
+    const message = `Payment Details:\nBank: ${acc.bank_name}\nAcc No: ${acc.account_number}\nName: ${acc.account_name}`;
     await Share.share({ message });
   };
-
-  const paymentMethods = [
-    { id: 'paymentpoint', name: 'Checkout', desc: 'Secure web checkout', icon: Lightning, color: colors.accent },
-    { id: 'monnify', name: 'Transfer/Card', desc: 'Bank transfer or card', icon: CreditCard, color: colors.secondary },
-    { id: 'virtual', name: 'Dedicated Account', desc: 'Auto-funding account', icon: Wallet, color: colors.primary },
-  ];
 
   return (
     <ScreenWrapper scroll>
       <View style={styles.header}>
         <Text variant="headingMedium" bold>Add Money</Text>
-        <Text variant="bodySmall" color="textSecondary">Choose how you want to fund your wallet</Text>
+        <Text variant="bodySmall" color="textSecondary" style={{ marginTop: 4 }}>
+          Fund your wallet instantly via direct bank transfer
+        </Text>
       </View>
 
       {/* Virtual Account Section */}
       <View style={styles.section}>
-        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>YOUR VIRTUAL ACCOUNT</Text>
         {isLoadingVirtualAccount ? (
           <View style={[styles.cardPlaceholder, { backgroundColor: colors.surface }]}>
             <ActivityIndicator color={colors.primary} />
           </View>
-        ) : virtualAccount ? (
-          <View style={[styles.atmCard, { backgroundColor: colors.primary }]}>
-            <View style={styles.cardHeader}>
-              <View style={styles.chip} />
-              <Text variant="bodyMedium" bold style={{ color: 'white' }}>{virtualAccount.bank_name}</Text>
-            </View>
+        ) : virtualAccounts.length > 0 ? (
+          <View style={styles.cardsContainer}>
+            <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>
+              YOUR DEDICATED ACCOUNTS
+            </Text>
+            {virtualAccounts.map((acc, index) => {
+              const bankLower = acc.bank_name.toLowerCase();
+              const isPalmPay = bankLower.includes('palm');
+              const isOPay = bankLower.includes('opay') || bankLower.includes('o pay');
+              const isWema = bankLower.includes('wema');
+              const isProvidus = bankLower.includes('providus');
 
-            <View style={styles.cardBody}>
-              <Text variant="caption" style={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>ACCOUNT NUMBER</Text>
-              <View style={styles.numberRow}>
-                <Text variant="headingMedium" bold style={{ color: 'white', letterSpacing: 2 }}>
-                  {virtualAccount.account_number}
-                </Text>
-                <TouchableOpacity onPress={() => copyToClipboard(virtualAccount.account_number, 'Account Number')}>
-                  <Copy size={20} color="white" weight="bold" />
-                </TouchableOpacity>
-              </View>
-            </View>
+              // Dynamic gradients for premium look
+              let cardColors: [string, string, string] | [string, string];
+              let borderStyle = {};
+              
+              if (isPalmPay) {
+                cardColors = ['#4F46E5', '#3B82F6', '#1E3A8A']; // Cobalt Blue to Purple/Navy
+              } else if (isOPay) {
+                cardColors = ['#03D186', '#059669', '#022C22']; // Bright Teal to Dark Green
+              } else if (isWema) {
+                cardColors = ['#9C27B0', '#E91E63', '#4A148C']; // Violet/Pink to Deep Wema Purple
+              } else if (isProvidus) {
+                cardColors = ['#1F2937', '#111827', '#030712']; // Dark charcoal dark grey/black
+                borderStyle = { borderWidth: 1.5, borderColor: '#D97706' }; // Gold border accent
+              } else {
+                cardColors = ['#64748B', '#334155', '#0F172A']; // Sleek metallic slate
+              }
 
-            <View style={styles.cardFooter}>
-              <View>
-                <Text variant="caption" style={{ color: 'rgba(255,255,255,0.6)' }}>ACCOUNT NAME</Text>
-                <Text variant="bodyMedium" bold style={{ color: 'white' }}>{virtualAccount.account_name}</Text>
-              </View>
-              <TouchableOpacity style={styles.shareBtn} onPress={shareDetails}>
-                <ShareNetwork size={18} color="white" weight="bold" />
-              </TouchableOpacity>
-            </View>
+              const isCopied = copiedIndex === index;
+
+              return (
+                <View key={index} style={[styles.cardOuterContainer, borderStyle]}>
+                  <LinearGradient
+                    colors={cardColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.atmCard}
+                  >
+                    {/* Mesh texture & shine overlays */}
+                    <View style={styles.radialShine} />
+                    <View style={[styles.meshBlob, { top: -20, right: -10, width: 100, height: 100 }]} />
+                    <View style={[styles.meshBlob, { bottom: -30, left: 10, width: 140, height: 140 }]} />
+                    
+                    {/* Glossy overlay effect for premium look */}
+                    <View style={styles.cardGloss} />
+                    
+                    <View style={styles.cardHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        {/* Gold Metallic EMV Chip */}
+                        <View style={styles.chipContainer}>
+                          <LinearGradient
+                            colors={['#F5D061', '#E6AF2E', '#CF9911']}
+                            style={styles.chipInner}
+                          >
+                            <View style={styles.chipLineH} />
+                            <View style={[styles.chipLineH, { top: '50%' }]} />
+                            <View style={[styles.chipLineH, { top: '80%' }]} />
+                            <View style={styles.chipLineV} />
+                            <View style={[styles.chipLineV, { left: '60%' }]} />
+                          </LinearGradient>
+                        </View>
+                        
+                        {/* Wireless Contactless Signal Icon */}
+                        <View style={{ transform: [{ rotate: '90deg' }], opacity: 0.7 }}>
+                          <WifiHigh size={18} color="#FFFFFF" weight="bold" />
+                        </View>
+                      </View>
+
+                      <View style={styles.bankNameBadge}>
+                        <Text variant="bodyMedium" bold style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
+                          {acc.bank_name}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardBody}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text variant="caption" style={styles.cardLabel}>ACCOUNT NUMBER</Text>
+                        {isCopied && (
+                          <Text variant="caption" bold style={styles.copiedBadgeText}>
+                            COPIED!
+                          </Text>
+                        )}
+                      </View>
+                      <View style={styles.numberRow}>
+                        <Text variant="headingMedium" bold style={styles.accountNumberText}>
+                          {formatAccountNumber(acc.account_number)}
+                        </Text>
+                        <TouchableOpacity
+                          style={[styles.copyIconBtn, isCopied && { backgroundColor: 'rgba(16, 185, 129, 0.4)' }]}
+                          onPress={() => copyToClipboard(acc.account_number, `${acc.bank_name} account number`, index)}
+                        >
+                          {isCopied ? (
+                            <Check size={18} color="#FFFFFF" weight="bold" />
+                          ) : (
+                            <Copy size={18} color="#FFFFFF" weight="bold" />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardFooter}>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="caption" style={styles.cardLabel}>ACCOUNT NAME</Text>
+                        <Text variant="bodyMedium" bold numberOfLines={1} style={{ color: '#FFFFFF' }}>
+                          {acc.account_name}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.shareBtn}
+                        onPress={() => shareDetails(acc)}
+                      >
+                        <ShareNetwork size={18} color="#FFFFFF" weight="bold" />
+                      </TouchableOpacity>
+                    </View>
+                  </LinearGradient>
+
+                  {/* Premium Action Row Below Card */}
+                  <View style={[styles.cardActionRow, { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }]}>
+                    <TouchableOpacity 
+                      style={styles.actionRowBtn}
+                      onPress={() => copyToClipboard(acc.account_number, `${acc.bank_name} account number`, index)}
+                    >
+                      <Copy size={16} color={colors.textSecondary} />
+                      <Text variant="bodySmall" medium color="textSecondary">Copy Number</Text>
+                    </TouchableOpacity>
+                    <View style={[styles.actionDivider, { backgroundColor: colors.border }]} />
+                    <TouchableOpacity 
+                      style={styles.actionRowBtn}
+                      onPress={() => copyAllCardDetails(acc, index)}
+                    >
+                      <CheckCircle size={16} color={colors.textSecondary} />
+                      <Text variant="bodySmall" medium color="textSecondary">Copy All Info</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+
+            {/* Sync Button */}
+            <TouchableOpacity
+              style={[styles.syncButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={handleOpenSyncModal}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <ArrowsClockwise size={20} color={colors.primary} weight="bold" />
+              )}
+              <Text variant="bodySmall" bold color="primary">
+                {isSyncing ? 'Syncing...' : 'Sync Missing Banks'}
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
@@ -254,9 +437,9 @@ export default function AddMoneyScreen() {
             ) : (
               <>
                 <PlusCircle size={32} color={colors.primary} weight="duotone" />
-                <Text variant="bodyMedium" bold color="primary">Generate Dedicated Account</Text>
-                <Text variant="caption" color="textSecondary" style={{ textAlign: 'center' }}>
-                  Verify your identity (BVN/NIN) to get your personal account number
+                <Text variant="bodyMedium" bold color="primary">Generate Dedicated Accounts</Text>
+                <Text variant="caption" color="textSecondary" style={{ textAlign: 'center', paddingHorizontal: 16 }}>
+                  Verify your identity (BVN/NIN) to automatically get your PalmPay and OPay personal accounts
                 </Text>
               </>
             )}
@@ -264,75 +447,10 @@ export default function AddMoneyScreen() {
         )}
       </View>
 
-      {/* Amount Section */}
-      <View style={styles.section}>
-        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>ENTER AMOUNT</Text>
-        <Input
-          label="Amount (₦)"
-          value={amount}
-          onChangeText={(v) => setAmount(v.replace(/\D/g, ''))}
-          keyboardType="numeric"
-          leftIcon={<Text variant="bodyLarge" bold style={{ marginRight: 8 }}>₦</Text>}
-        />
-        <View style={styles.quickGrid}>
-          {quickAmounts.map(amt => (
-            <TouchableOpacity
-              key={amt}
-              style={[styles.amtChip, { backgroundColor: colors.surface, borderColor: amount === amt.toString() ? colors.primary : colors.border }]}
-              onPress={() => setAmount(amt.toString())}
-            >
-              <Text variant="bodySmall" bold color={amount === amt.toString() ? 'primary' : 'textPrimary'}>
-                ₦{amt.toLocaleString()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Payment Methods */}
-      <View style={styles.section}>
-        <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>FUNDING METHOD</Text>
-        <View style={styles.methodList}>
-          {paymentMethods.map(m => (
-            <TouchableOpacity
-              key={m.id}
-              style={[
-                styles.methodCard,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: selectedMethod === m.id ? m.color : colors.border,
-                  borderWidth: selectedMethod === m.id ? 2 : 1
-                }
-              ]}
-              onPress={() => setSelectedMethod(m.id)}
-            >
-              <View style={[styles.methodIcon, { backgroundColor: `${m.color}15` }]}>
-                <m.icon size={24} color={m.color} weight="duotone" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text variant="bodyMedium" bold>{m.name}</Text>
-                <Text variant="caption" color="textSecondary">{m.desc}</Text>
-              </View>
-              {selectedMethod === m.id && (
-                <CheckCircle size={20} color={m.color} weight="fill" />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <Button
-        label={selectedMethod === 'virtual' ? 'Copy Account Number' : `Fund Wallet (₦${amount || '0'})`}
-        onPress={handleAddMoney}
-        loading={isLoading}
-        style={styles.actionBtn}
-        disabled={!amount && selectedMethod !== 'virtual'}
-      />
-
       <View style={[styles.infoBox, { backgroundColor: colors.primaryLight }]}>
         <Info size={20} color={colors.primary} weight="duotone" />
         <Text variant="caption" color="primary" style={{ flex: 1 }}>
-          Funding via dedicated account is instant. Checkout methods may take up to 2 minutes to reflect.
+          Dedicated account transfers are processed instantly by PaymentPoint. Make a transfer to any of the virtual accounts above to fund your wallet.
         </Text>
       </View>
 
@@ -425,7 +543,7 @@ export default function AddMoneyScreen() {
 
               {/* Actions */}
               <Button
-                label="Verify & Generate Account"
+                label={syncMode ? "Verify & Sync Accounts" : "Verify & Generate Account"}
                 onPress={handleKycSubmit}
                 style={{ marginTop: 20 }}
                 disabled={idNumber.length !== 11}
@@ -450,40 +568,146 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    marginBottom: 12,
+    marginBottom: 16,
     marginLeft: 4,
     letterSpacing: 1,
   },
+  cardsContainer: {
+    gap: 20,
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  cardOuterContainer: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+  },
   atmCard: {
     padding: 24,
-    borderRadius: 24,
-    height: 200,
+    height: 190,
     justifyContent: 'space-between',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  radialShine: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  meshBlob: {
+    position: 'absolute',
+    borderRadius: 70,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  cardGloss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    transform: [{ skewY: '-10deg' }, { scaleY: 1.5 }],
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  chip: {
-    width: 40,
-    height: 30,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  chipContainer: {
+    width: 38,
+    height: 28,
     borderRadius: 6,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  chipInner: {
+    flex: 1,
+    padding: 4,
+  },
+  chipLineH: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 0.5,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    top: '25%',
+  },
+  chipLineV: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 0.5,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    left: '30%',
+  },
+  copiedBadgeText: {
+    color: '#10B981',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  bankNameBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   cardBody: {
     marginTop: 8,
+  },
+  cardLabel: {
+    color: 'rgba(255, 255, 255, 0.55)',
+    letterSpacing: 1,
+    fontSize: 9,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  accountNumberText: {
+    color: '#FFFFFF',
+    letterSpacing: 2,
+    fontSize: 22,
   },
   numberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 4,
+  },
+  copyIconBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   cardFooter: {
     flexDirection: 'row',
@@ -494,9 +718,28 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  cardActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  actionRowBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  actionDivider: {
+    width: 1,
+    height: 20,
   },
   cardPlaceholder: {
     height: 200,
@@ -514,45 +757,13 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 12,
   },
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  amtChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  methodList: {
-    gap: 12,
-  },
-  methodCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 20,
-    gap: 16,
-  },
-  methodIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionBtn: {
-    marginTop: 12,
-    marginBottom: 20,
-  },
   infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderRadius: 16,
     gap: 12,
+    marginTop: 8,
   },
   // ── Modal ──
   modalOverlay: {

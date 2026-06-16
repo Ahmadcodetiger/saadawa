@@ -20,7 +20,7 @@ export const ServiceItem: React.FC<ServiceItemProps> = ({
   onPress,
   color,
 }) => {
-  const { colors, theme } = useAppTheme();
+  const { colors, theme, isDark } = useAppTheme();
   const scale = useSharedValue(1);
 
   const handlePressIn = () => {
@@ -56,6 +56,11 @@ export const ServiceItem: React.FC<ServiceItemProps> = ({
         { 
             backgroundColor: color || colors.surface,
             shadowColor: iconColor,
+            ...(isDark ? {
+              shadowOpacity: 0.35,
+              shadowRadius: 10,
+              elevation: 4,
+            } : {})
         }
       ]}>
         {icon}

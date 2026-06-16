@@ -1,4 +1,4 @@
-package com.ahmadcodetiger.saadawa
+package com.icodearewa.saadawa
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

@@ -67,7 +67,6 @@ export const AuthProvider = ({ children }) => {
   }, [isAuthenticated]);
 
   const login = async (userData) => {
-    setIsLoading(true);
     try {
       if (!userData?.email || !userData?.password) {
         throw new Error('Email and password are required');
@@ -119,8 +118,6 @@ export const AuthProvider = ({ children }) => {
         success: false, 
         message: errorMessage
       };
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -147,7 +144,7 @@ export const AuthProvider = ({ children }) => {
         logout,
       }}
     >
-      {!isLoading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

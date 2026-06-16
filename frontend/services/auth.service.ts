@@ -78,7 +78,7 @@ export const authService = {
       
       return response.data;
     } catch (error: any) {
-      throw error.response?.data || { success: false, message: 'Login failed' };
+      throw error.message ? error : (error.response?.data || { success: false, message: 'Login failed' });
     }
   },
 

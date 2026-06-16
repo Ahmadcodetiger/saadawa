@@ -21,9 +21,9 @@ import {
 
 // ─── API Base URL ────────────────────────────────────────────────────────────
 // Switch between these as needed:
-export const API_BASE_URL = 'http://10.115.240.9:5000/api'; // ← LOCAL (current machine on LAN)
+//export const API_BASE_URL = 'http://10.115.240.9:5000/api'; // ← LOCAL (current machine on LAN)
 // export const API_BASE_URL = 'http://localhost:5000/api';     // ← LOCAL (iOS simulator only)
-// export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // ← PRODUCTION
+export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // ← PRODUCTION
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -122,26 +122,34 @@ api.interceptors.response.use(
     const { status, data } = error.response;
     let errorMessage = data?.message || 'An error occurred';
 
+    const isAuthRequest = (error.config && error.config.url)
+      ? error.config.url.startsWith('/auth/')
+      : false;
+
     // Handle specific status codes
     if (status === 401) {
-      // Clear auth data on 401
-      try {
-        // Clear auth data
-        await SecureStore.deleteItemAsync('authToken');
-        await AsyncStorage.multiRemove(['user', 'walletData', 'transactions', 'profileData']);
+      if (isAuthRequest) {
+        errorMessage = data?.message || 'Invalid email or password';
+      } else {
+        // Clear auth data on 401
+        try {
+          // Clear auth data
+          await SecureStore.deleteItemAsync('authToken');
+          await AsyncStorage.multiRemove(['user', 'walletData', 'transactions', 'profileData']);
 
-        // Clear API auth header
-        if (api.defaults.headers.common['Authorization']) {
-          delete api.defaults.headers.common['Authorization'];
+          // Clear API auth header
+          if (api.defaults.headers.common['Authorization']) {
+            delete api.defaults.headers.common['Authorization'];
+          }
+
+          // Update error message for user
+          errorMessage = 'Your session has expired. Please log in again.';
+
+          // Note: Navigation should be handled by the app's auth state management
+          // The app will automatically redirect to login when it detects no token
+        } catch (storageError) {
+          console.error('Error during logout:', storageError);
         }
-
-        // Update error message for user
-        errorMessage = 'Your session has expired. Please log in again.';
-
-        // Note: Navigation should be handled by the app's auth state management
-        // The app will automatically redirect to login when it detects no token
-      } catch (storageError) {
-        console.error('Error during logout:', storageError);
       }
     } else if (status === 400 && data?.errors) {
       // Handle validation errors
@@ -164,7 +172,6 @@ api.interceptors.response.use(
     }
 
     // Show user-friendly alert for non-401 errors and non-auth pages
-    const isAuthRequest = error.config?.url?.startsWith('/auth/');
     if (status !== 401 && !isAuthRequest) {
       Alert.alert('Error', errorMessage);
     }

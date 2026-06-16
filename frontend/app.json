@@ -1,8 +1,9 @@
 {
   "expo": {
     "name": "Saadawa Data",
-    "slug": "saadawa-data",
-    "version": "1.0.0",
+    "slug": "saadawa-data-sub",
+    "owner": "devahmad",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/saadawalogo.png",
     "scheme": "vtuapp",
@@ -10,11 +11,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ahmadcodetiger.saadawa"
+      "bundleIdentifier": "com.icodearewa.saadawa"
     },
     "android": {
-      "package": "com.ahmadcodetiger.saadawa",
-      "versionCode": 1,
+      "package": "com.icodearewa.saadawa",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -52,7 +53,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "64947245-fd18-4c19-8a09-629893c1c11b"
+        "projectId": "fe07968e-c012-4af4-b65e-4be07e0e89f9"
       }
     }
   }

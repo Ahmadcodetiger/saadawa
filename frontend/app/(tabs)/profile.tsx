@@ -90,7 +90,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            router.replace('/login');
+            router.replace('/login' as any);
           }
         },
       ]

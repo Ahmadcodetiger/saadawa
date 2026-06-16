@@ -7,7 +7,6 @@ import {
   FacebookLogo, 
   ShieldCheck, 
   Info,
-  TextDivider
 } from 'phosphor-react-native';
 
 import { useAppTheme } from '../src/theme/ThemeContext';

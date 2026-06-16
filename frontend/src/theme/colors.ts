@@ -103,7 +103,7 @@ export const darkTheme: typeof lightTheme = {
   textPrimary: '#F8FAFC',
   textSecondary: '#A0AEC0',
   textTertiary: '#718096',
-  textInverse: '#121212',
+  textInverse: '#FFFFFF',
   textDisabled: '#4A5568',
 
   statusSuccessful: palette.emerald[400],

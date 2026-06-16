@@ -13,6 +13,7 @@ export interface IVirtualAccount extends Document {
     virtualAccountNo?: string;
     identityType?: string;
     licenseNumber?: string;
+    accounts?: any[];
   };
   isActive: boolean;
   createdAt: Date;

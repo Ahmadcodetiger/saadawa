@@ -44,7 +44,7 @@ const LoginScreen: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)' as any);
       return;
     }
 
@@ -77,7 +77,7 @@ const LoginScreen: React.FC = () => {
           email: email.trim().toLowerCase(),
           password
         }));
-        router.replace('/(tabs)');
+        router.replace('/(tabs)' as any);
       } else {
         showAlert(response.message || 'Invalid email or password', 'error');
       }
@@ -101,7 +101,7 @@ const LoginScreen: React.FC = () => {
           const { email: savedEmail, password: savedPassword } = JSON.parse(creds);
           const response = await login({ email: savedEmail, password: savedPassword });
           if (response.success) {
-            router.replace('/(tabs)');
+            router.replace('/(tabs)' as any);
           } else {
             showAlert(response.message || 'Biometric login failed', 'error');
           }
@@ -144,7 +144,7 @@ const LoginScreen: React.FC = () => {
         />
 
         <TouchableOpacity 
-          onPress={() => router.push('/forgot-password')}
+          onPress={() => router.push('/forgot-password' as any)}
           style={styles.forgotBtn}
         >
           <Text variant="labelMedium" color="primary" bold>Forgot Password?</Text>
@@ -172,7 +172,7 @@ const LoginScreen: React.FC = () => {
           <Text variant="bodyMedium" color="textSecondary">
             Don't have an account?{' '}
           </Text>
-          <TouchableOpacity onPress={() => router.push('/signup')}>
+          <TouchableOpacity onPress={() => router.push('/signup' as any)}>
             <Text variant="bodyMedium" color="primary" bold>Sign Up</Text>
           </TouchableOpacity>
         </View>

@@ -32,7 +32,7 @@ export default function SetPinScreen() {
       const res = await userService.setTransactionPin(pin);
       if (res.success) {
         showSuccess('Transaction PIN set successfully!');
-        setTimeout(() => router.replace('/(tabs)'), 1500);
+        setTimeout(() => router.replace('/(tabs)' as any), 1500);
       } else showError(res.message || 'Failed to set PIN');
     } catch (e: any) {
       showError(e.message);

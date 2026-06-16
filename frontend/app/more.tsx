@@ -23,7 +23,26 @@ import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
 
 export default function MoreScreen() {
   const router = useRouter();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+
+  const getServiceColor = (lightColor: string) => {
+    if (!isDark) return lightColor;
+    switch (lightColor) {
+      case '#9333EA': return '#C084FC';
+      case '#EAB308': return '#FDE047';
+      case '#06B6D4': return '#22D3EE';
+      case '#10B981': return '#34D399';
+      case '#F59E0B': return '#FBBF24';
+      case '#3B82F6': return '#60A5FA';
+      case '#8B5CF6': return '#A78BFA';
+      case '#EC4899': return '#F472B6';
+      case '#14B8A6': return '#2DD4BF';
+      case '#6366F1': return '#818CF8';
+      case '#EF4444': return '#F87171';
+      case '#0EA5E9': return '#38BDF8';
+      default: return lightColor;
+    }
+  };
 
   const services = [
     { id: 1, title: 'Cable TV', icon: Television, color: '#9333EA' },
@@ -48,18 +67,32 @@ export default function MoreScreen() {
       </View>
 
       <View style={styles.grid}>
-        {services.map((s) => (
-          <TouchableOpacity 
-            key={s.id} 
-            style={[styles.card, { backgroundColor: colors.surface }]}
-            onPress={() => console.log('Press', s.title)}
-          >
-            <View style={[styles.iconBox, { backgroundColor: `${s.color}15` }]}>
-              <s.icon size={26} color={s.color} weight="duotone" />
-            </View>
-            <Text variant="caption" bold style={{ textAlign: 'center', marginTop: 8 }}>{s.title}</Text>
-          </TouchableOpacity>
-        ))}
+        {services.map((s) => {
+          const serviceColor = getServiceColor(s.color);
+          return (
+            <TouchableOpacity 
+              key={s.id} 
+              style={[styles.card, { backgroundColor: colors.surface }]}
+              onPress={() => console.log('Press', s.title)}
+            >
+              <View style={[
+                styles.iconBox, 
+                { 
+                  backgroundColor: isDark ? `${serviceColor}25` : `${s.color}15`,
+                  shadowColor: serviceColor,
+                  ...(isDark ? {
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: 3,
+                  } : {})
+                }
+              ]}>
+                <s.icon size={26} color={serviceColor} weight="duotone" />
+              </View>
+              <Text variant="caption" bold style={{ textAlign: 'center', marginTop: 8 }}>{s.title}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <View style={[styles.comingSoon, { backgroundColor: colors.primary }]}>

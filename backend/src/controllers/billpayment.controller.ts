@@ -15,8 +15,9 @@ export class BillPaymentController {
   // Get networks
   async getNetworks(req: Request, res: Response, next: NextFunction) {
     try {
-      const client = smeplugService;
-      const networks: any = await client.getNetworks();
+      const selected = await providerRegistry.getPreferredProviderFor('airtime');
+      const client = selected?.client || smeplugService;
+      const networks: any = await client.getNetworks!();
       
       let payload: any[] = [];
       if (networks.response && Array.isArray(networks.response)) {
@@ -189,8 +190,12 @@ export class BillPaymentController {
         return ApiResponse.error(res, 'Insufficient wallet balance', 400);
       }
 
+      // Resolve active provider for airtime
+      const selected = await providerRegistry.getPreferredProviderFor('airtime');
+      const client = selected?.client || smeplugService;
+
       // Generate reference
-      const ref = smeplugService.generateReference('AIRTIME');
+      const ref = (client as any).generateReference ? (client as any).generateReference('AIRTIME') : smeplugService.generateReference('AIRTIME');
 
       // Get wallet for wallet_id
       const walletData = await WalletService.getWalletByUserId(userId);
@@ -210,11 +215,11 @@ export class BillPaymentController {
         status: 'pending',
         destination_account: phone,
         description: `Airtime purchase - ${network.toUpperCase()} - ${phone}`,
+        gateway: selected?.code || 'smeplug',
       });
 
       try {
-        const client = smeplugService;
-        const result = await client.purchaseAirtime({
+        const result = await client.purchaseAirtime!({
             network: String(providerId),
             phone: String(phone),
             ref,
@@ -311,22 +316,28 @@ export class BillPaymentController {
       } else {
         // Live provider plan — fetch price from live API
         try {
-          const client = smeplugService;
+          const selected = await providerRegistry.getPreferredProviderFor('data');
+          const client = selected?.client || smeplugService;
           if (client?.getDataPlans) {
             const result = await client.getDataPlans();
-            // SMEPlug format: { data: { "1": [...], "2": [...] } }
             let livePlan: any = null;
             if (result?.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
+              // SMEPlug format: { data: { "1": [...], "2": [...] } }
               for (const netPlans of Object.values(result.data)) {
                 livePlan = (netPlans as any[]).find((p: any) => String(p.id) === String(plan));
                 if (livePlan) break;
               }
+            } else if (result?.response && Array.isArray(result.response)) {
+              // Topupmate format: { status: "success", response: [...] }
+              livePlan = result.response.find((p: any) => String(p.id) === String(plan));
+            } else if (Array.isArray(result)) {
+              livePlan = result.find((p: any) => String(p.id) === String(plan));
             }
             if (!livePlan) {
               return ApiResponse.error(res, 'Invalid plan selected', 400);
             }
             amount = Number(livePlan.price || 0);
-            planExternalId = String(plan); // SMEPlug plan ID passed directly
+            planExternalId = String(plan); // Live plan ID passed directly
           } else {
             return ApiResponse.error(res, 'Data plans not available from provider', 503);
           }
@@ -364,8 +375,12 @@ export class BillPaymentController {
         return ApiResponse.error(res, 'Insufficient wallet balance', 400);
       }
 
+      // Resolve active provider for data
+      const selected = await providerRegistry.getPreferredProviderFor('data');
+      const client = selected?.client || smeplugService;
+
       // Generate reference
-      const ref = smeplugService.generateReference('DATA');
+      const ref = (client as any).generateReference ? (client as any).generateReference('DATA') : smeplugService.generateReference('DATA');
 
       // Get wallet for wallet_id
       const walletData = await WalletService.getWalletByUserId(userId);
@@ -385,11 +400,11 @@ export class BillPaymentController {
         status: 'pending',
         destination_account: phone,
         description: `Data purchase - ${network.toUpperCase()} - ${phone}`,
+        gateway: selected?.code || 'smeplug',
         ...(dbPlan ? { plan_id: dbPlan._id } : { metadata: { plan_external_id: planExternalId } }),
       });
 
       try {
-        const client = smeplugService;
         let result: any;
 
         if (client?.purchaseData) {
@@ -751,8 +766,13 @@ export class BillPaymentController {
     try {
       const { reference } = req.params;
 
+      // Check DB for recorded gateway
+      const transaction = await Transaction.findOne({ reference_number: reference });
+
       let client: any = topupmateService;
-      if (reference.startsWith('AIRTIME_') || reference.startsWith('DATA_')) {
+      if (transaction?.gateway) {
+        client = providerRegistry.getClient(transaction.gateway) || topupmateService;
+      } else if (reference.startsWith('AIRTIME_') || reference.startsWith('DATA_')) {
         client = smeplugService;
       }
       

@@ -9,8 +9,9 @@ import {
   Users, 
   Bell, 
   CheckCircle,
-  Gear,
-  Info
+  Gear, 
+  Info,
+  ShieldCheck
 } from 'phosphor-react-native';
 
 import { useAppTheme } from '../src/theme/ThemeContext';
@@ -81,13 +82,13 @@ export default function SettingsScreen() {
             label="Security & PIN"
             description="Manage Password and Transaction PIN"
             icon={ShieldCheck}
-            onPress={() => router.push('/security')}
+            onPress={() => router.push('/security' as any)}
         />
         <SettingRow 
             label="Notifications"
             description="Manage alerts and push notifications"
             icon={Bell}
-            onPress={() => router.push('/notifications')}
+            onPress={() => router.push('/notifications' as any)}
             hideBorder
         />
       </View>
@@ -99,13 +100,13 @@ export default function SettingsScreen() {
                 label="User Management"
                 description="View and manage user accounts"
                 icon={Users}
-                onPress={() => router.push('/admin-users')}
+                onPress={() => router.push('/admin-users' as any)}
             />
             <SettingRow 
                 label="Push Broadcast"
                 description="Send notifications to all users"
                 icon={Bell}
-                onPress={() => router.push('/admin-notifications')}
+                onPress={() => router.push('/admin-notifications' as any)}
                 hideBorder
             />
           </View>
@@ -117,7 +118,7 @@ export default function SettingsScreen() {
             label="Help & Support"
             description="Get help or report an issue"
             icon={Info}
-            onPress={() => router.push('/help-support')}
+            onPress={() => router.push('/help-support' as any)}
           />
           <SettingRow 
             label="Legal & Terms"
@@ -165,5 +166,3 @@ const styles = StyleSheet.create({
     right: 8,
   },
 });
-
-import { ShieldCheck } from 'phosphor-react-native';
