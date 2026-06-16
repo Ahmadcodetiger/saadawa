@@ -27,6 +27,10 @@ dotenv.config();
 
 const app = express();
 
+// Trust the first proxy (Vercel / load balancer)
+// Required for express-rate-limit to correctly identify client IPs
+app.set('trust proxy', 1);
+
 // Security Headers
 app.use(helmet());
 

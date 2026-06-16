@@ -72,6 +72,15 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Persist the ID to the user profile so future calls work automatically
+    if (idType === 'bvn' && !user.bvn) {
+      user.bvn = sanitizedIdNumber;
+      await user.save();
+    } else if (idType === 'nin' && !user.nin) {
+      user.nin = sanitizedIdNumber;
+      await user.save();
+    }
+
     const result = await paymentPointService.createVirtualAccount({
       email: user.email,
       name: `${user.first_name} ${user.last_name}`,
@@ -88,12 +97,18 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
     }
 
     if (!result.data || !result.data.bankAccounts || !result.data.bankAccounts[0]) {
-      const errorMsg = result.data?.errors?.join(', ') || 'Failed to generate virtual accounts on PaymentPoint';
+      const ppErrors: string[] = result.data?.errors || [];
+      const errorMessage = ppErrors.length > 0
+        ? ppErrors.join(', ')
+        : 'PaymentPoint could not provision a bank account at this time. Please try again later.';
+
       return res.status(400).json({
         success: false,
-        message: errorMsg,
+        message: errorMessage,
+        details: ppErrors,
       });
     }
+
 
     const bankAccount = result.data.bankAccounts[0];
     const accountsList = result.data.bankAccounts.map((acc: any) => ({
@@ -242,12 +257,14 @@ export const getVirtualAccount = async (req: AuthRequest, res: Response) => {
 export const paymentWebhook = async (req: Request, res: Response) => {
   try {
     const timestamp = new Date().toISOString();
-    console.log(`\n--- 📡 [${timestamp}] PaymentPoint webhook received ---`);
-    
-    // 1. Verify Signature
-    const signature = req.headers['paymentpoint-signature'] as string;
-    const secret = process.env.PAYMENTPOINT_API_SECRET || '';
-    
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`📡 [${timestamp}] PaymentPoint Webhook Received`);
+    console.log(`${'='.repeat(60)}`);
+
+    // ── 1. Dump all incoming headers ──────────────────────────────
+    console.log('📋 HEADERS:', JSON.stringify(req.headers, null, 2));
+
+    // ── 2. Capture raw body ───────────────────────────────────────
     let rawBody: string = '';
     if (req.body instanceof Buffer) {
       rawBody = req.body.toString('utf8');
@@ -256,7 +273,11 @@ export const paymentWebhook = async (req: Request, res: Response) => {
     } else {
       rawBody = JSON.stringify(req.body);
     }
-    
+    console.log('📦 RAW BODY:', rawBody);
+
+    const signature = req.headers['paymentpoint-signature'] as string;
+    const secret = process.env.PAYMENTPOINT_API_SECRET || '';
+
     if (!secret) {
       console.error('❌ PAYMENTPOINT_API_SECRET not configured — webhook rejected.');
       return res.status(500).json({ error: 'Webhook secret not configured' });
@@ -281,6 +302,7 @@ export const paymentWebhook = async (req: Request, res: Response) => {
       console.log('✅ Signature verified.');
     }
 
+    // ── 3. Parse payload ──────────────────────────────────────────
     let payload: any;
     try {
       payload = JSON.parse(rawBody);
@@ -288,8 +310,7 @@ export const paymentWebhook = async (req: Request, res: Response) => {
       console.warn('⚠️ Could not parse JSON from raw payload, using parsed body directly.');
       payload = req.body;
     }
-    
-    console.log('📡 Parsed Payload:', JSON.stringify(payload, null, 2));
+    console.log('🔍 PARSED PAYLOAD:', JSON.stringify(payload, null, 2));
 
     if (!payload || (Object.keys(payload).length === 0)) {
       return res.status(200).json({ success: false, message: 'Empty payload' });

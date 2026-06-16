@@ -4,15 +4,17 @@ import AirtimePlan from '../models/airtime_plan.model.js';
 import { Transaction, User } from '../models/index.js';
 import { Plan } from '../models/plan.model.js';
 import providerRegistry from '../services/providerRegistry.service.js';
-import topupmateService from '../services/topupmate.service.js';
 import smeplugService from '../services/smeplug.service.js';
+import topupmateService from '../services/topupmate.service.js';
 import { WalletService } from '../services/wallet.service.js';
 import { AuthRequest } from '../types/index.js';
-import { normalizeNetwork } from '../utils/network.js';
+import { normalizeNetwork, getNetworkName } from '../utils/network.js';
 import { ApiResponse } from '../utils/response.js';
 
+// TopupMate uses network names like 'mtn', 'airtel', 'glo', '9mobile'
+
 export class BillPaymentController {
-  // Get networks
+  // Get networks - using TopupMate
   async getNetworks(req: Request, res: Response, next: NextFunction) {
     try {
       const selected = await providerRegistry.getPreferredProviderFor('airtime');
@@ -125,7 +127,9 @@ export class BillPaymentController {
     }
   }
 
-  // Purchase airtime
+  // =====================================================
+  // PURCHASE AIRTIME - USING TOPUPMATE
+  // =====================================================
   async purchaseAirtime(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { network, phone, amount, airtime_type = 'VTU', ported_number = true, pin } = req.body;
@@ -158,6 +162,9 @@ export class BillPaymentController {
       if (!providerId) {
         return ApiResponse.error(res, 'Invalid network. Must be: mtn, airtel, glo, or 9mobile', 400);
       }
+
+      // Get TopupMate network name
+      const topupmateNetworkId = getNetworkName(providerId).toLowerCase();
 
       // Calculate discount
       const airtimePlan = await AirtimePlan.findOne({ providerId, type: 'AIRTIME', active: true });
@@ -219,17 +226,34 @@ export class BillPaymentController {
       });
 
       try {
-        const result = await client.purchaseAirtime!({
-            network: String(providerId),
-            phone: String(phone),
-            ref,
-            airtime_type,
-            ported_number,
-            amount: String(amount),
+        console.log(`📱 Purchasing airtime via ${selected?.code || 'smeplug'}:`, {
+          network: String(providerId),
+          phone: String(phone),
+          amount: String(amount),
+          ref,
+          airtime_type,
         });
 
-        // Update transaction status
-        if (result.status === 'success' || result.status === true || result.status === 'true') {
+        const result = await client.purchaseAirtime!({
+          network: String(providerId),
+          phone: String(phone),
+          ref,
+          airtime_type,
+          ported_number,
+          amount: String(amount),
+        });
+
+        console.log('📱 TopupMate airtime response:', JSON.stringify(result, null, 2));
+
+        // Check for success - TopupMate returns various formats
+        const isSuccess = 
+          (result.status as any) === 'success' || 
+          (result.status as any) === true || 
+          (result.status as any) === 'true' ||
+          result.code === '000' ||
+          result.success === true;
+
+        if (isSuccess) {
           await Transaction.findByIdAndUpdate(transaction._id, {
             status: 'successful',
             updated_at: new Date()
@@ -245,11 +269,11 @@ export class BillPaymentController {
           await WalletService.credit(userId, finalAmount, 'Airtime purchase refund');
           await Transaction.findByIdAndUpdate(transaction._id, {
             status: 'failed',
-            error_message: result.msg || 'Unknown error',
+            error_message: result.msg || result.message || 'Unknown error',
             updated_at: new Date()
           });
-          console.error('❌ Airtime purchase failed - SMEPlug Response:', JSON.stringify(result, null, 2));
-          return ApiResponse.error(res, `Airtime purchase failed: ${result.msg || 'Unknown error'}`, 400);
+          console.error('❌ Airtime purchase failed - TopupMate Response:', JSON.stringify(result, null, 2));
+          return ApiResponse.error(res, `Airtime purchase failed: ${result.msg || result.message || 'Unknown error'}`, 400);
         }
       } catch (error: any) {
         // Refund user on error
@@ -260,15 +284,16 @@ export class BillPaymentController {
           updated_at: new Date()
         });
         console.error('❌ Airtime purchase error:', error.message, error.response?.data);
-        // Throw a clean error object to avoid circular reference issues in global error handler
-        throw new Error(error.response?.data?.message || error.message || 'Airtime purchase failed');
+        throw new Error(error.response?.data?.message || error.response?.data?.msg || error.message || 'Airtime purchase failed');
       }
     } catch (error) {
       next(error);
     }
   }
 
-  // Purchase data
+  // =====================================================
+  // PURCHASE DATA - STILL USING SMEPLUG (since it works)
+  // =====================================================
   async purchaseData(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { network, phone, plan, ported_number = true, pin } = req.body;
@@ -349,8 +374,7 @@ export class BillPaymentController {
       if (!amount || amount <= 0) {
         return ApiResponse.error(res, 'Invalid plan price', 400);
       }
-      const finalAmount = amount; // No discount for live plans (use admin configured discount for DB plans)
-
+      const finalAmount = amount;
 
       // Validate user balance
       if (!userId) {
@@ -401,7 +425,7 @@ export class BillPaymentController {
         destination_account: phone,
         description: `Data purchase - ${network.toUpperCase()} - ${phone}`,
         gateway: selected?.code || 'smeplug',
-        ...(dbPlan ? { plan_id: dbPlan._id } : { metadata: { plan_external_id: planExternalId } }),
+        ...(dbPlan ? { plan_id: dbPlan._id } : { metadata: { plan_external_id: planExternalId, provider: selected?.code || 'smeplug' } }),
       });
 
       try {
@@ -772,7 +796,7 @@ export class BillPaymentController {
       let client: any = topupmateService;
       if (transaction?.gateway) {
         client = providerRegistry.getClient(transaction.gateway) || topupmateService;
-      } else if (reference.startsWith('AIRTIME_') || reference.startsWith('DATA_')) {
+      } else if (reference.startsWith('DATA_')) {
         client = smeplugService;
       }
       
@@ -816,12 +840,11 @@ export class BillPaymentController {
           operator: plan.providerName || 'MTN',
           operator_code: String(plan.providerId),
           price: Number(plan.price),
-          type: plan.type.toLowerCase(), // 'data' or 'airtime'
+          type: plan.type.toLowerCase(),
           validity: plan.meta?.validity || '',
           data_amount: plan.meta?.data_value || plan.code || ''
         }))
       ];
-
 
       return ApiResponse.success(res, 'Developer plans retrieved successfully', payload);
     } catch (error) {

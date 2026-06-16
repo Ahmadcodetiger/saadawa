@@ -5,9 +5,9 @@ export interface PaymentPointCreateData {
   name: string;
   phoneNumber: string;
   /** Identity type for KYC: 'bvn' or 'nin' */
-  idType: 'bvn' | 'nin';
+  idType?: 'bvn' | 'nin';
   /** 11-digit BVN or NIN number */
-  idNumber: string;
+  idNumber?: string;
 }
 
 export interface PaymentPointAccount {

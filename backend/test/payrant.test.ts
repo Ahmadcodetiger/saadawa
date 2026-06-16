@@ -163,5 +163,5 @@ describe('Payrant Virtual Account API', () => {
       expect(response.data).toHaveProperty('message', 'Virtual account not found');
     });
   });
-  });
 });
+
