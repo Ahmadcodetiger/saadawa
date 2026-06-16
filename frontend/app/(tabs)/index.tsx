@@ -173,44 +173,44 @@ export default function HomeScreen() {
   };
 
   const services = [
-    { 
-      id: 'airtime', 
-      label: 'Airtime', 
-      icon: <PhoneCall size={28} color="#5B6AF0" weight="duotone" />, 
-      route: '/buy-airtime', 
-      color: '#EEF0FF' 
+    {
+      id: 'airtime',
+      label: 'Airtime',
+      icon: <PhoneCall size={28} color="#5B6AF0" weight="duotone" />,
+      route: '/buy-airtime',
+      color: isDark ? 'rgba(91,106,240,0.18)' : '#EEF0FF'
     },
-    { 
-      id: 'data', 
-      label: 'Data', 
-      icon: <WifiHigh size={28} color="#3B9EEB" weight="duotone" />, 
-      route: '/buy-data', 
-      color: '#E8F5FF' 
+    {
+      id: 'data',
+      label: 'Data',
+      icon: <WifiHigh size={28} color="#3B9EEB" weight="duotone" />,
+      route: '/buy-data',
+      color: isDark ? 'rgba(59,158,235,0.18)' : '#E8F5FF'
     },
-    { 
-      id: 'tv', 
-      label: 'TV Cable', 
-      icon: <Television size={28} color="#E040A0" weight="duotone" />, 
-      route: '/pay-bills', 
-      color: '#FFF0F8' 
+    {
+      id: 'tv',
+      label: 'TV Cable',
+      icon: <Television size={28} color="#E040A0" weight="duotone" />,
+      route: '/pay-bills',
+      color: isDark ? 'rgba(224,64,160,0.18)' : '#FFF0F8'
     },
-    { 
-      id: 'electricity', 
-      label: 'Electricity', 
-      icon: <Lightning size={28} color="#F0A030" weight="duotone" />, 
-      route: '/pay-bills', 
-      color: '#FFF8E8' 
+    {
+      id: 'electricity',
+      label: 'Electricity',
+      icon: <Lightning size={28} color="#F0A030" weight="duotone" />,
+      route: '/pay-bills',
+      color: isDark ? 'rgba(240,160,48,0.18)' : '#FFF8E8'
     },
   ];
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return { text: 'Good morning ☀️', color: '#6B7280' };
-    if (hour < 17) return { text: 'Good afternoon 🌤️', color: '#6B7280' };
-    return { text: 'Good evening 🌙', color: '#6B7280' };
+    if (hour < 12) return 'Good morning ☀️';
+    if (hour < 17) return 'Good afternoon 🌤️';
+    return 'Good evening 🌙';
   };
 
-  const greetingEffect = getGreeting();
+  const greetingText = getGreeting();
 
   const mapType = (type: string): any => {
     switch (type) {
@@ -237,16 +237,16 @@ export default function HomeScreen() {
           />
         </TouchableOpacity>
         <View style={styles.greeting}>
-          <Text variant="bodySmall" style={{ color: greetingEffect.color }} medium>{greetingEffect.text}</Text>
-          <Text variant="headingSmall" bold style={{ color: '#1A1A2E', fontSize: 22 }}>{user?.first_name || 'Guest'}</Text>
+          <Text variant="bodySmall" color="textSecondary" medium>{greetingText}</Text>
+          <Text variant="headingSmall" bold style={{ color: colors.textPrimary, fontSize: 22 }}>{user?.first_name || 'Guest'}</Text>
         </View>
       </View>
-      
-      <TouchableOpacity 
-        style={[styles.iconBtn, { backgroundColor: '#F3F4F6' }]}
+
+      <TouchableOpacity
+        style={[styles.iconBtn, { backgroundColor: colors.surface }]}
         onPress={() => router.push('/notifications')}
       >
-        <Bell size={22} color="#1A1A2E" weight="duotone" />
+        <Bell size={22} color={colors.textPrimary} weight="duotone" />
         {unreadCount > 0 && <View style={[styles.badge, { backgroundColor: '#FF3B30' }]} />}
       </TouchableOpacity>
     </View>
@@ -272,7 +272,7 @@ export default function HomeScreen() {
 
         <View style={styles.servicesSection}>
           <View style={styles.sectionHeader}>
-            <Text variant="headingSmall" bold style={{ fontSize: 18, color: '#1A1A2E' }}>Our Services</Text>
+            <Text variant="headingSmall" bold style={{ fontSize: 18, color: colors.textPrimary }}>Our Services</Text>
             <TouchableOpacity onPress={() => router.push('/more')}>
               <Text variant="labelMedium" color="primary" bold style={{ fontSize: 14 }}>See All</Text>
             </TouchableOpacity>

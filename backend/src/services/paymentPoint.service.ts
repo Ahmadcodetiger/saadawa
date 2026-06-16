@@ -13,7 +13,7 @@ class PaymentPointService {
     this.businessId = process.env.PAYMENTPOINT_BUSINESS_ID || '';
   }
 
-  async createVirtualAccount(userData: { email: string; name: string; phoneNumber: string }) {
+  async createVirtualAccount(userData: { email: string; name: string; phoneNumber: string; idType?: 'bvn' | 'nin'; idNumber?: string }) {
     try {
       const headers = {
         'Authorization': `Bearer ${this.apiSecret}`,
@@ -26,7 +26,7 @@ class PaymentPointService {
         formattedPhone = '0' + formattedPhone;
       }
 
-      const requestData = {
+      const requestData: Record<string, any> = {
         email: userData.email,
         name: userData.name,
         phoneNumber: formattedPhone,
@@ -34,6 +34,12 @@ class PaymentPointService {
         bankCode: ['20946', '20897'],
         businessId: this.businessId,
       };
+
+      // Attach identity verification if provided
+      if (userData.idType && userData.idNumber) {
+        requestData.idType = userData.idType;
+        requestData.idNumber = userData.idNumber;
+      }
 
       console.log('🏦 Creating PaymentPoint virtual account:', requestData);
 

@@ -7,7 +7,7 @@ import { useFonts, DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, useColorScheme } from 'react-native';
 import { AppUpdateChecker } from '@/components/AppUpdateChecker';
 
 // Keep splash screen visible while we fetch resources
@@ -35,8 +35,8 @@ function AuthLayout() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111418' }}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' }}>
+        <ActivityIndicator size="large" color="#6366F1" />
       </View>
     );
   }
@@ -45,7 +45,7 @@ function AuthLayout() {
     <Stack screenOptions={{
       headerShown: false,
       animation: 'fade',
-      contentStyle: { backgroundColor: '#111418' },
+      contentStyle: { backgroundColor: 'transparent' },
     }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="login" />
@@ -74,6 +74,7 @@ function AuthLayout() {
 }
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
   const [fontsLoaded] = useFonts({
     'Poppins-Regular': require('../assets/fonts/Poppins-Regular.ttf'),
     'Poppins-Medium': require('../assets/fonts/Poppins-Medium.ttf'),
@@ -101,7 +102,7 @@ export default function RootLayout() {
       <AlertProvider>
         <ProfileProvider>
           <AuthProvider>
-            <StatusBar style="light" />
+            <StatusBar style="auto" />
             <AuthLayout />
             <AppUpdateChecker />
           </AuthProvider>

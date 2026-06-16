@@ -1,4 +1,5 @@
 import express from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { 
   createVirtualAccount, 
@@ -8,10 +9,20 @@ import {
 
 const router = express.Router();
 
+// Stricter rate limit for creating virtual accounts: max 5 attempts per hour per IP
+const createAccountLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many account creation attempts. Please try again in an hour.' }
+});
+
 // Protected routes (require authentication)
 router.post(
   '/create-virtual-account',
   authMiddleware,
+  createAccountLimiter,
   createVirtualAccount
 );
 

@@ -26,6 +26,32 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // ── BVN/NIN Validation ──────────────────────────────────────────
+    const { idType, idNumber } = req.body as { idType?: string; idNumber?: string };
+
+    if (!idType || !idNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Identity verification is required. Please provide your BVN or NIN.',
+      });
+    }
+
+    if (idType !== 'bvn' && idType !== 'nin') {
+      return res.status(400).json({
+        success: false,
+        message: 'idType must be either "bvn" or "nin".',
+      });
+    }
+
+    const sanitizedIdNumber = idNumber.replace(/\D/g, '');
+    if (sanitizedIdNumber.length !== 11) {
+      return res.status(400).json({
+        success: false,
+        message: `${idType.toUpperCase()} must be exactly 11 digits.`,
+      });
+    }
+    // ────────────────────────────────────────────────────────────────
+
     const existingAccount = await VirtualAccount.findOne({
       user: new mongoose.Types.ObjectId(userId),
       provider: 'paymentpoint'
@@ -50,6 +76,8 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       email: user.email,
       name: `${user.first_name} ${user.last_name}`,
       phoneNumber: user.phone_number,
+      idType: idType as 'bvn' | 'nin',
+      idNumber: sanitizedIdNumber,
     });
 
     if (!result.success) {
@@ -79,7 +107,7 @@ export const createVirtualAccount = async (req: AuthRequest, res: Response) => {
       metadata: {
         virtualAccountName: result.data.customer?.customer_name,
         virtualAccountNo: bankAccount.accountNumber,
-        identityType: 'NIN',
+        identityType: idType.toUpperCase(),
         licenseNumber: result.data.customer?.customer_id
       }
     });
@@ -203,7 +231,18 @@ export const paymentWebhook = async (req: Request, res: Response) => {
       rawBody = JSON.stringify(req.body);
     }
     
-    if (secret && signature) {
+    if (!secret) {
+      console.error('❌ PAYMENTPOINT_API_SECRET not configured — webhook rejected.');
+      return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+
+    if (!signature) {
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('❌ [SECURITY] Missing webhook signature in production — rejected.');
+        return res.status(400).json({ error: 'Missing signature' });
+      }
+      console.warn('⚠️ Signature missing — skipping verification in development only.');
+    } else {
       const calculatedSignature = crypto
         .createHmac('sha256', secret)
         .update(rawBody)
@@ -214,8 +253,6 @@ export const paymentWebhook = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Invalid signature' });
       }
       console.log('✅ Signature verified.');
-    } else {
-      console.warn('⚠️ Signature or Secret missing - skipping verification (ONLY for dev).');
     }
 
     let payload: any;
@@ -240,6 +277,12 @@ export const paymentWebhook = async (req: Request, res: Response) => {
 
     const sanitizedAccountNumber = accountNumber.replace(/\D/g, '');
     
+    const MAX_WEBHOOK_AMOUNT = 5_000_000; // ₦5,000,000 sanity cap
+    if (amount > MAX_WEBHOOK_AMOUNT) {
+      console.error(`❌ [SECURITY] Webhook amount ₦${amount} exceeds maximum. Rejected.`);
+      return res.status(200).json({ success: false, message: 'Amount out of range' });
+    }
+
     if (amount > 0 && sanitizedAccountNumber) {
       console.log(`🔍 Searching for virtual account with number: ${sanitizedAccountNumber}`);
       

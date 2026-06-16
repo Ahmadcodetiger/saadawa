@@ -50,21 +50,21 @@ const TabItem = ({ route, isFocused, onPress, colors, label }: any) => {
       activeOpacity={0.7}
     >
       <Animated.View style={[styles.iconContainer, iconStyle]}>
-        {getIcon(route.name, isFocused ? colors.primary : '#9CA3AF', isFocused)}
+        {getIcon(route.name, isFocused ? colors.primary : colors.textTertiary, isFocused)}
       </Animated.View>
 
       {/* Dot Indicator */}
       <Animated.View style={[styles.dotIndicator, { backgroundColor: colors.primary }, dotStyle]} />
       
-      <Text 
-        variant="overline" 
-        color={isFocused ? 'primary' : 'textSecondary'} 
+      <Text
+        variant="overline"
+        color={isFocused ? 'primary' : 'textSecondary'}
         bold={isFocused}
-        style={{ 
-            marginTop: 4, 
-            fontSize: 10, 
-            color: isFocused ? colors.primary : '#9CA3AF',
-            fontWeight: isFocused ? '700' : '400' 
+        style={{
+          marginTop: 4,
+          fontSize: 10,
+          color: isFocused ? colors.primary : colors.textTertiary,
+          fontWeight: isFocused ? '700' : '400'
         }}
       >
         {label}
@@ -79,12 +79,12 @@ export const CustomBottomTabBar = ({ state, descriptors, navigation }: any) => {
 
   return (
     <View style={[
-      styles.container, 
-      { 
-        backgroundColor: '#FFFFFF',
+      styles.container,
+      {
+        backgroundColor: colors.surfaceElevated,
         paddingBottom: Math.max(insets.bottom, 16),
         borderTopWidth: 1,
-        borderTopColor: '#F3F4F6',
+        borderTopColor: colors.border,
       }
     ]}>
       {state.routes.filter((route: any) => 
@@ -121,15 +121,15 @@ export const CustomBottomTabBar = ({ state, descriptors, navigation }: any) => {
               >
                 {getIcon(route.name, 'white', true)}
               </LinearGradient>
-              <Text 
-                variant="overline" 
-                color={isFocused ? 'primary' : 'textSecondary'} 
+              <Text
+                variant="overline"
+                color={isFocused ? 'primary' : 'textSecondary'}
                 bold={isFocused}
-                style={{ 
-                    marginTop: 4, 
-                    fontSize: 10,
-                    color: isFocused ? colors.primary : '#9CA3AF',
-                    fontWeight: isFocused ? '700' : '400'
+                style={{
+                  marginTop: 4,
+                  fontSize: 10,
+                  color: isFocused ? colors.primary : colors.textTertiary,
+                  fontWeight: isFocused ? '700' : '400'
                 }}
               >
                 Quick Actions

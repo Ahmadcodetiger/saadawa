@@ -60,7 +60,7 @@ export const ServiceItem: React.FC<ServiceItemProps> = ({
       ]}>
         {icon}
       </View>
-      <Text variant="labelMedium" style={styles.label}>
+      <Text variant="labelMedium" style={[styles.label, { color: colors.textPrimary }]}>
         {label}
       </Text>
     </AnimatedTouchable>
@@ -96,7 +96,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     fontWeight: '600',
-    color: '#1A1A2E',
     marginTop: 8,
   },
 });

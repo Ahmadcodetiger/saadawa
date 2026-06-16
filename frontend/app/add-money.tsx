@@ -1,17 +1,28 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Share, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Share,
+  Modal,
+  Platform,
+  KeyboardAvoidingView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
-import { 
-  PlusCircle, 
-  Copy, 
-  ShareNetwork, 
-  CheckCircle, 
-  Info, 
-  Lightning, 
-  Wallet, 
-  CreditCard 
+import {
+  PlusCircle,
+  Copy,
+  ShareNetwork,
+  CheckCircle,
+  Info,
+  Lightning,
+  Wallet,
+  CreditCard,
+  IdentificationCard,
+  X,
 } from 'phosphor-react-native';
 
 import { useAppTheme } from '../src/theme/ThemeContext';
@@ -26,6 +37,8 @@ import { paymentPointService } from '@/services/paymentpoint.service';
 
 const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
 
+type IdType = 'bvn' | 'nin';
+
 export default function AddMoneyScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
@@ -38,6 +51,12 @@ export default function AddMoneyScreen() {
   const [isLoadingVirtualAccount, setIsLoadingVirtualAccount] = useState(true);
   const [isCreatingVirtualAccount, setIsCreatingVirtualAccount] = useState(false);
 
+  // KYC Modal state
+  const [showKycModal, setShowKycModal] = useState(false);
+  const [idType, setIdType] = useState<IdType>('bvn');
+  const [idNumber, setIdNumber] = useState('');
+  const [idNumberError, setIdNumberError] = useState('');
+
   useEffect(() => {
     loadVirtualAccount();
   }, []);
@@ -46,14 +65,14 @@ export default function AddMoneyScreen() {
     try {
       setIsLoadingVirtualAccount(true);
       const response = await paymentPointService.getVirtualAccount();
-      
+
       if (!response || (typeof response === 'object' && 'exists' in response && !response.exists)) {
         setVirtualAccount(null);
         return;
       }
-      
+
       const responseData = (response as any)?.data?.data || (response as any)?.data || response;
-      
+
       if (responseData && (!('exists' in responseData) || responseData.exists !== false)) {
         const accNo = responseData?.accountNumber || responseData?.account_number || responseData?.virtualAccountNo;
         setVirtualAccount({
@@ -72,7 +91,38 @@ export default function AddMoneyScreen() {
     }
   }, []);
 
-  const handleCreateVirtualAccount = async () => {
+  const validateIdNumber = (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 0) return `${idType.toUpperCase()} is required`;
+    if (digits.length !== 11) return `${idType.toUpperCase()} must be exactly 11 digits`;
+    return '';
+  };
+
+  const handleIdNumberChange = (value: string) => {
+    // Only allow digits, limit to 11
+    const digits = value.replace(/\D/g, '').slice(0, 11);
+    setIdNumber(digits);
+    if (idNumberError) setIdNumberError('');
+  };
+
+  const handleOpenKycModal = () => {
+    setIdNumber('');
+    setIdNumberError('');
+    setShowKycModal(true);
+  };
+
+  const handleKycSubmit = async () => {
+    const error = validateIdNumber(idNumber);
+    if (error) {
+      setIdNumberError(error);
+      return;
+    }
+
+    setShowKycModal(false);
+    await handleCreateVirtualAccount(idType, idNumber.replace(/\D/g, ''));
+  };
+
+  const handleCreateVirtualAccount = async (kycIdType: IdType, kycIdNumber: string) => {
     try {
       setIsCreatingVirtualAccount(true);
       const user = await authService.getCurrentUser();
@@ -85,6 +135,8 @@ export default function AddMoneyScreen() {
         name: `${user.first_name} ${user.last_name}`,
         email: user.email,
         phoneNumber: user.phone_number,
+        idType: kycIdType,
+        idNumber: kycIdNumber,
       });
 
       showSuccess('Virtual account generated!');
@@ -152,85 +204,88 @@ export default function AddMoneyScreen() {
         <Text variant="bodySmall" color="textSecondary">Choose how you want to fund your wallet</Text>
       </View>
 
-      {/* ATM Card Section */}
+      {/* Virtual Account Section */}
       <View style={styles.section}>
         <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>YOUR VIRTUAL ACCOUNT</Text>
         {isLoadingVirtualAccount ? (
-            <View style={[styles.cardPlaceholder, { backgroundColor: colors.surface }]}>
-                <ActivityIndicator color={colors.primary} />
-            </View>
+          <View style={[styles.cardPlaceholder, { backgroundColor: colors.surface }]}>
+            <ActivityIndicator color={colors.primary} />
+          </View>
         ) : virtualAccount ? (
-            <View style={[styles.atmCard, { backgroundColor: colors.primary }]}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.chip} />
-                    <Text variant="bodyMedium" bold style={{ color: 'white' }}>{virtualAccount.bank_name}</Text>
-                </View>
-                
-                <View style={styles.cardBody}>
-                    <Text variant="caption" style={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>ACCOUNT NUMBER</Text>
-                    <View style={styles.numberRow}>
-                        <Text variant="headingMedium" bold style={{ color: 'white', letterSpacing: 2 }}>
-                            {virtualAccount.account_number}
-                        </Text>
-                        <TouchableOpacity onPress={() => copyToClipboard(virtualAccount.account_number, 'Account Number')}>
-                            <Copy size={20} color="white" weight="bold" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <View style={styles.cardFooter}>
-                    <View>
-                        <Text variant="caption" style={{ color: 'rgba(255,255,255,0.6)' }}>ACCOUNT NAME</Text>
-                        <Text variant="bodyMedium" bold style={{ color: 'white' }}>{virtualAccount.account_name}</Text>
-                    </View>
-                    <TouchableOpacity style={styles.shareBtn} onPress={shareDetails}>
-                        <ShareNetwork size={18} color="white" weight="bold" />
-                    </TouchableOpacity>
-                </View>
+          <View style={[styles.atmCard, { backgroundColor: colors.primary }]}>
+            <View style={styles.cardHeader}>
+              <View style={styles.chip} />
+              <Text variant="bodyMedium" bold style={{ color: 'white' }}>{virtualAccount.bank_name}</Text>
             </View>
+
+            <View style={styles.cardBody}>
+              <Text variant="caption" style={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>ACCOUNT NUMBER</Text>
+              <View style={styles.numberRow}>
+                <Text variant="headingMedium" bold style={{ color: 'white', letterSpacing: 2 }}>
+                  {virtualAccount.account_number}
+                </Text>
+                <TouchableOpacity onPress={() => copyToClipboard(virtualAccount.account_number, 'Account Number')}>
+                  <Copy size={20} color="white" weight="bold" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.cardFooter}>
+              <View>
+                <Text variant="caption" style={{ color: 'rgba(255,255,255,0.6)' }}>ACCOUNT NAME</Text>
+                <Text variant="bodyMedium" bold style={{ color: 'white' }}>{virtualAccount.account_name}</Text>
+              </View>
+              <TouchableOpacity style={styles.shareBtn} onPress={shareDetails}>
+                <ShareNetwork size={18} color="white" weight="bold" />
+              </TouchableOpacity>
+            </View>
+          </View>
         ) : (
-            <TouchableOpacity 
-                style={[styles.noAccount, { borderColor: colors.border, backgroundColor: colors.surface }]} 
-                onPress={handleCreateVirtualAccount}
-                disabled={isCreatingVirtualAccount}
-            >
-                {isCreatingVirtualAccount ? (
-                    <ActivityIndicator color={colors.primary} />
-                ) : (
-                    <>
-                        <PlusCircle size={32} color={colors.primary} weight="duotone" />
-                        <Text variant="bodyMedium" bold color="primary">Generate Dedicated Account</Text>
-                        <Text variant="caption" color="textSecondary" style={{ textAlign: 'center' }}>
-                            Receive instant deposits through your personal account number
-                        </Text>
-                    </>
-                )}
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.noAccount, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            onPress={handleOpenKycModal}
+            disabled={isCreatingVirtualAccount}
+          >
+            {isCreatingVirtualAccount ? (
+              <>
+                <ActivityIndicator color={colors.primary} />
+                <Text variant="bodyMedium" bold color="primary">Creating your account…</Text>
+              </>
+            ) : (
+              <>
+                <PlusCircle size={32} color={colors.primary} weight="duotone" />
+                <Text variant="bodyMedium" bold color="primary">Generate Dedicated Account</Text>
+                <Text variant="caption" color="textSecondary" style={{ textAlign: 'center' }}>
+                  Verify your identity (BVN/NIN) to get your personal account number
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
         )}
       </View>
 
       {/* Amount Section */}
       <View style={styles.section}>
         <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>ENTER AMOUNT</Text>
-        <Input 
-            label="Amount (₦)"
-            value={amount}
-            onChangeText={(v) => setAmount(v.replace(/\D/g, ''))}
-            keyboardType="numeric"
-            leftIcon={<Text variant="bodyLarge" bold style={{ marginRight: 8 }}>₦</Text>}
+        <Input
+          label="Amount (₦)"
+          value={amount}
+          onChangeText={(v) => setAmount(v.replace(/\D/g, ''))}
+          keyboardType="numeric"
+          leftIcon={<Text variant="bodyLarge" bold style={{ marginRight: 8 }}>₦</Text>}
         />
         <View style={styles.quickGrid}>
-            {quickAmounts.map(amt => (
-                <TouchableOpacity 
-                    key={amt}
-                    style={[styles.amtChip, { backgroundColor: colors.surface, borderColor: amount === amt.toString() ? colors.primary : colors.border }]}
-                    onPress={() => setAmount(amt.toString())}
-                >
-                    <Text variant="bodySmall" bold color={amount === amt.toString() ? 'primary' : 'textPrimary'}>
-                        ₦{amt.toLocaleString()}
-                    </Text>
-                </TouchableOpacity>
-            ))}
+          {quickAmounts.map(amt => (
+            <TouchableOpacity
+              key={amt}
+              style={[styles.amtChip, { backgroundColor: colors.surface, borderColor: amount === amt.toString() ? colors.primary : colors.border }]}
+              onPress={() => setAmount(amt.toString())}
+            >
+              <Text variant="bodySmall" bold color={amount === amt.toString() ? 'primary' : 'textPrimary'}>
+                ₦{amt.toLocaleString()}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
@@ -238,35 +293,35 @@ export default function AddMoneyScreen() {
       <View style={styles.section}>
         <Text variant="labelMedium" color="textSecondary" medium style={styles.sectionTitle}>FUNDING METHOD</Text>
         <View style={styles.methodList}>
-            {paymentMethods.map(m => (
-                <TouchableOpacity 
-                    key={m.id}
-                    style={[
-                        styles.methodCard, 
-                        { 
-                            backgroundColor: colors.surface,
-                            borderColor: selectedMethod === m.id ? m.color : colors.border,
-                            borderWidth: selectedMethod === m.id ? 2 : 1
-                        }
-                    ]}
-                    onPress={() => setSelectedMethod(m.id)}
-                >
-                    <View style={[styles.methodIcon, { backgroundColor: `${m.color}15` }]}>
-                        <m.icon size={24} color={m.color} weight="duotone" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <Text variant="bodyMedium" bold>{m.name}</Text>
-                        <Text variant="caption" color="textSecondary">{m.desc}</Text>
-                    </View>
-                    {selectedMethod === m.id && (
-                        <CheckCircle size={20} color={m.color} weight="fill" />
-                    )}
-                </TouchableOpacity>
-            ))}
+          {paymentMethods.map(m => (
+            <TouchableOpacity
+              key={m.id}
+              style={[
+                styles.methodCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: selectedMethod === m.id ? m.color : colors.border,
+                  borderWidth: selectedMethod === m.id ? 2 : 1
+                }
+              ]}
+              onPress={() => setSelectedMethod(m.id)}
+            >
+              <View style={[styles.methodIcon, { backgroundColor: `${m.color}15` }]}>
+                <m.icon size={24} color={m.color} weight="duotone" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyMedium" bold>{m.name}</Text>
+                <Text variant="caption" color="textSecondary">{m.desc}</Text>
+              </View>
+              {selectedMethod === m.id && (
+                <CheckCircle size={20} color={m.color} weight="fill" />
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
-      <Button 
+      <Button
         label={selectedMethod === 'virtual' ? 'Copy Account Number' : `Fund Wallet (₦${amount || '0'})`}
         onPress={handleAddMoney}
         loading={isLoading}
@@ -275,13 +330,113 @@ export default function AddMoneyScreen() {
       />
 
       <View style={[styles.infoBox, { backgroundColor: colors.primaryLight }]}>
-         <Info size={20} color={colors.primary} weight="duotone" />
-         <Text variant="caption" color="primary" style={{ flex: 1 }}>
-            Funding via dedicated account is instant. Checkout methods may take up to 2 minutes to reflect.
-         </Text>
+        <Info size={20} color={colors.primary} weight="duotone" />
+        <Text variant="caption" color="primary" style={{ flex: 1 }}>
+          Funding via dedicated account is instant. Checkout methods may take up to 2 minutes to reflect.
+        </Text>
       </View>
 
       <View style={{ height: 100 }} />
+
+      {/* ─── KYC Modal ──────────────────────────────────────────────── */}
+      <Modal
+        visible={showKycModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowKycModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ width: '100%', alignItems: 'center' }}
+          >
+            <View style={[styles.modalCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <View style={[styles.modalIconBg, { backgroundColor: colors.primaryLight }]}>
+                  <IdentificationCard size={28} color={colors.primary} weight="duotone" />
+                </View>
+                <TouchableOpacity onPress={() => setShowKycModal(false)} style={styles.modalClose}>
+                  <X size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <Text variant="headingSmall" bold style={{ marginBottom: 4 }}>Identity Verification</Text>
+              <Text variant="bodySmall" color="textSecondary" style={{ marginBottom: 24 }}>
+                Required by CBN regulations. Your data is encrypted and never shared.
+              </Text>
+
+              {/* ID Type Toggle */}
+              <Text variant="labelMedium" color="textSecondary" medium style={styles.modalLabel}>ID TYPE</Text>
+              <View style={[styles.toggleRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                {(['bvn', 'nin'] as IdType[]).map(type => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.toggleBtn,
+                      idType === type && { backgroundColor: colors.primary }
+                    ]}
+                    onPress={() => { setIdType(type); setIdNumber(''); setIdNumberError(''); }}
+                  >
+                    <Text
+                      variant="labelMedium"
+                      bold={idType === type}
+                      style={{ color: idType === type ? 'white' : colors.textSecondary }}
+                    >
+                      {type.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* ID Number Input */}
+              <View style={{ marginTop: 16 }}>
+                <Input
+                  label={`Enter your ${idType.toUpperCase()} (11 digits)`}
+                  value={idNumber}
+                  onChangeText={handleIdNumberChange}
+                  keyboardType="number-pad"
+                  maxLength={11}
+                  rightIcon={
+                    idNumber.length === 11
+                      ? <CheckCircle size={20} color={colors.success} weight="fill" />
+                      : undefined
+                  }
+                />
+                {idNumberError ? (
+                  <Text variant="caption" style={{ color: colors.error, marginTop: 4, marginLeft: 4 }}>
+                    {idNumberError}
+                  </Text>
+                ) : (
+                  <Text variant="caption" color="textTertiary" style={{ marginTop: 4, marginLeft: 4 }}>
+                    {idNumber.length}/11 digits
+                  </Text>
+                )}
+              </View>
+
+              {/* Security note */}
+              <View style={[styles.securityNote, { backgroundColor: colors.primaryLight }]}>
+                <Info size={16} color={colors.primary} weight="duotone" />
+                <Text variant="caption" color="primary" style={{ flex: 1 }}>
+                  Your {idType.toUpperCase()} is used only for regulatory compliance and is securely encrypted.
+                </Text>
+              </View>
+
+              {/* Actions */}
+              <Button
+                label="Verify & Generate Account"
+                onPress={handleKycSubmit}
+                style={{ marginTop: 20 }}
+                disabled={idNumber.length !== 11}
+              />
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowKycModal(false)}>
+                <Text variant="bodySmall" color="textSecondary">Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </ScreenWrapper>
   );
 }
@@ -398,5 +553,70 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     gap: 12,
+  },
+  // ── Modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  modalCard: {
+    width: '100%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderWidth: 1,
+    padding: 28,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 28,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalIconBg: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalLabel: {
+    marginBottom: 8,
+    letterSpacing: 0.8,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 12,
+    margin: 3,
+  },
+  securityNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 16,
+  },
+  cancelBtn: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingVertical: 8,
   },
 });
