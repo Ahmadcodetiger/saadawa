@@ -35,7 +35,7 @@ import AdminInfoModal from '../../src/components/organisms/AdminInfoModal';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { colors, theme, mode } = useAppTheme();
+  const { colors, theme, mode, isDark } = useAppTheme();
   
   const [user, setUser] = useState<any>(null);
   const [wallet, setWallet] = useState<WalletData | null>(null);
