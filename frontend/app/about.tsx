@@ -26,15 +26,15 @@ export default function AboutScreen() {
   return (
     <ScreenWrapper scroll>
       <View style={styles.header}>
-        <Text variant="headingMedium" bold>About Saadawa</Text>
+        <Text variant="headingMedium" bold>About Eesher Data</Text>
         <Text variant="bodySmall" color="textSecondary">Version 2.1.0 (Stable)</Text>
       </View>
 
       <View style={styles.logoSection}>
           <View style={[styles.logoContainer, { backgroundColor: colors.primary }]}>
-            <Text variant="headingLarge" bold style={{ color: 'white' }}>S</Text>
+            <Text variant="headingLarge" bold style={{ color: 'white' }}>E</Text>
           </View>
-          <Text variant="headingSmall" bold style={{ marginTop: 16 }}>Saadawa VTU</Text>
+          <Text variant="headingSmall" bold style={{ marginTop: 16 }}>Eesher Data VTU</Text>
           <Text variant="caption" color="textSecondary">Fintech services, redefined.</Text>
       </View>
 
@@ -57,13 +57,13 @@ export default function AboutScreen() {
               <ShieldCheck size={28} color={colors.primary} weight="duotone" />
               <View style={{ flex: 1, marginLeft: 16 }}>
                   <Text variant="bodyMedium" bold color="primary">Protected & Verified</Text>
-                  <Text variant="caption" color="primary">Saadawa is a registered entity with CAC under RC: 1234567. We are PCI-DSS compliant.</Text>
+                  <Text variant="caption" color="primary">Eesher Data is a registered entity with CAC under RC: 1234567. We are PCI-DSS compliant.</Text>
               </View>
           </View>
       </View>
 
       <View style={styles.footer}>
-          <Text variant="caption" color="textTertiary">© 2026 Saadawa Ltd. All rights reserved.</Text>
+          <Text variant="caption" color="textTertiary">© 2026 Eesher Data Ltd. All rights reserved.</Text>
       </View>
 
       <View style={{ height: 100 }} />

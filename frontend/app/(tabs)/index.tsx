@@ -22,7 +22,7 @@ import { ScreenWrapper } from '../../src/components/templates/ScreenWrapper';
 import { WalletCard } from '../../src/components/molecules/WalletCard';
 import { ServiceItem } from '../../src/components/molecules/ServiceItem';
 import { TransactionRow } from '../../src/components/molecules/TransactionRow';
-import { Skeleton } from '../../src/components/atoms/LayoutAtoms';
+
 
 import { userService } from '@/services/user.service';
 import { walletService, WalletData } from '@/services/wallet.service';
@@ -40,7 +40,6 @@ export default function HomeScreen() {
   const [user, setUser] = useState<any>(null);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [virtualAccount, setVirtualAccount] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [recentTransactions, setRecentTransactions] = useState<ApiTransaction[]>([]);
@@ -52,9 +51,44 @@ export default function HomeScreen() {
     }, [])
   );
 
-  const loadAllData = async () => {
+  const loadDataFromCache = async () => {
     try {
-      setLoading(true);
+      const [
+        cachedUser,
+        cachedWallet,
+        cachedVirtualAccount,
+        cachedUnreadCount,
+        cachedRecentTransactions
+      ] = await Promise.all([
+        AsyncStorage.getItem('user'),
+        AsyncStorage.getItem('walletData'),
+        AsyncStorage.getItem('virtualAccount'),
+        AsyncStorage.getItem('unreadCount'),
+        AsyncStorage.getItem('recentTransactions')
+      ]);
+
+      if (cachedUser) setUser(JSON.parse(cachedUser));
+      if (cachedWallet) setWallet(JSON.parse(cachedWallet));
+      if (cachedVirtualAccount) setVirtualAccount(JSON.parse(cachedVirtualAccount));
+      if (cachedUnreadCount) setUnreadCount(parseInt(cachedUnreadCount, 10) || 0);
+      if (cachedRecentTransactions) setRecentTransactions(JSON.parse(cachedRecentTransactions));
+
+      return !!cachedWallet;
+    } catch (e) {
+      console.log('Error loading dashboard cache:', e);
+      return false;
+    }
+  };
+
+  const loadAllData = async (forceRefresh = false) => {
+    try {
+      if (!forceRefresh) {
+        const hasCache = await loadDataFromCache();
+        if (hasCache) {
+          return;
+        }
+      }
+
       const token = await SecureStore.getItemAsync('authToken');
       if (token) {
         await Promise.all([
@@ -70,8 +104,6 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -80,6 +112,7 @@ export default function HomeScreen() {
       const response = await transactionService.getTransactions(1, 4);
       if (response.success && Array.isArray(response.data)) {
         setRecentTransactions(response.data);
+        await AsyncStorage.setItem('recentTransactions', JSON.stringify(response.data));
       }
     } catch (error) {
       console.log('Error loading recent transactions:', error);
@@ -92,11 +125,13 @@ export default function HomeScreen() {
       if (response) {
         const responseData = (response as any)?.data?.data || response;
         if (responseData && (responseData.accountNumber || responseData.account_number)) {
-            setVirtualAccount({
+            const va = {
                 account_number: responseData.accountNumber || responseData.account_number || responseData.virtualAccountNo,
                 account_name: responseData.accountName || responseData.account_name || responseData.customerName,
                 bank_name: responseData.bankName || responseData.bank_name || 'PALMPAY',
-            });
+            };
+            setVirtualAccount(va);
+            await AsyncStorage.setItem('virtualAccount', JSON.stringify(va));
         }
       }
     } catch (error) {
@@ -107,7 +142,11 @@ export default function HomeScreen() {
   const loadUserProfile = async () => {
     try {
       const response = await userService.getProfile();
-      if (response.success) setUser(response.data);
+      if (response.success) {
+        setUser(response.data);
+        await AsyncStorage.setItem('user', JSON.stringify(response.data));
+        await AsyncStorage.setItem('userData', JSON.stringify(response.data));
+      }
     } catch (error) {
        const userData = await authService.getCurrentUser();
        setUser(userData);
@@ -117,7 +156,10 @@ export default function HomeScreen() {
   const loadWalletData = async () => {
     try {
       const response = await walletService.getWallet();
-      if (response.success) setWallet(response.data);
+      if (response.success) {
+        setWallet(response.data);
+        await AsyncStorage.setItem('walletData', JSON.stringify(response.data));
+      }
     } catch (error) {
       setWallet(null);
     }
@@ -128,7 +170,9 @@ export default function HomeScreen() {
       const response = await notificationsService.getNotifications(1, 20);
       const notifs = response?.data || [];
       const unread = notifs.filter(n => !n.is_read);
-      setUnreadCount(unread.length);
+      const count = unread.length;
+      setUnreadCount(count);
+      await AsyncStorage.setItem('unreadCount', count.toString());
 
       const dismissedRaw = await AsyncStorage.getItem('dismissedAlerts');
       const dismissedAlerts = dismissedRaw ? JSON.parse(dismissedRaw) : [];
@@ -158,7 +202,9 @@ export default function HomeScreen() {
          await AsyncStorage.setItem('dismissedAlerts', JSON.stringify(dismissedAlerts));
 
          await notificationsService.markAsRead(adminInfo.id);
-         setUnreadCount(prev => Math.max(0, prev - 1));
+         const newCount = Math.max(0, unreadCount - 1);
+         setUnreadCount(newCount);
+         await AsyncStorage.setItem('unreadCount', newCount.toString());
        } catch (error) {
          // Soft fail on api
        }
@@ -168,7 +214,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadAllData();
+    await loadAllData(true);
     setRefreshing(false);
   };
 
@@ -252,73 +298,6 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderSkeleton = () => (
-    <View style={{ paddingHorizontal: 20 }}>
-      {/* Header Skeleton */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Skeleton width={48} height={48} borderRadius={24} style={{ marginRight: 12 }} />
-          <View style={styles.greeting}>
-            <Skeleton width={80} height={12} borderRadius={4} style={{ marginBottom: 6 }} />
-            <Skeleton width={120} height={20} borderRadius={6} />
-          </View>
-        </View>
-        <Skeleton width={48} height={48} borderRadius={14} />
-      </View>
-
-      {/* Wallet Card Skeleton */}
-      <View style={styles.walletSection}>
-        <Skeleton width="100%" height={210} borderRadius={24} />
-      </View>
-
-      {/* Services Grid Skeleton */}
-      <View style={styles.servicesSection}>
-        <View style={styles.sectionHeader}>
-          <Skeleton width={100} height={18} borderRadius={4} />
-          <Skeleton width={50} height={14} borderRadius={4} />
-        </View>
-        <View style={styles.servicesGrid}>
-          {Array(4).fill(0).map((_, i) => (
-            <View key={i} style={{ width: '25%', padding: 8, alignItems: 'center' }}>
-              <Skeleton width={56} height={56} borderRadius={16} style={{ marginBottom: 8 }} />
-              <Skeleton width={50} height={10} borderRadius={4} />
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Promo Cards Skeletons */}
-      <View style={styles.promoSection}>
-        <Skeleton width="100%" height={90} borderRadius={20} style={{ marginBottom: 20 }} />
-        <Skeleton width="100%" height={90} borderRadius={20} />
-      </View>
-
-      {/* Transactions Skeleton */}
-      <View style={styles.transactionSection}>
-        <View style={styles.sectionHeader}>
-          <Skeleton width={120} height={18} borderRadius={4} />
-          <Skeleton width={50} height={14} borderRadius={4} />
-        </View>
-        <View style={{ gap: 16, marginTop: 8 }}>
-          {Array(3).fill(0).map((_, i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <Skeleton width={44} height={44} borderRadius={22} style={{ marginRight: 12 }} />
-                <View style={{ flex: 1, gap: 6 }}>
-                  <Skeleton width="60%" height={14} borderRadius={4} />
-                  <Skeleton width="40%" height={10} borderRadius={4} />
-                </View>
-              </View>
-              <Skeleton width={60} height={16} borderRadius={4} />
-            </View>
-          ))}
-        </View>
-      </View>
-
-      <View style={{ height: 100 }} />
-    </View>
-  );
-
   return (
     <ScreenWrapper
       padding={false}
@@ -327,11 +306,8 @@ export default function HomeScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
     >
-      {loading && !refreshing ? (
-        renderSkeleton()
-      ) : (
-        <View style={{ paddingHorizontal: 20 }}>
-          {renderHeader()}
+      <View style={{ paddingHorizontal: 20 }}>
+        {renderHeader()}
 
         <View style={styles.walletSection}>
           <WalletCard 
@@ -442,7 +418,6 @@ export default function HomeScreen() {
 
         <View style={{ height: 100 }} />
       </View>
-      )}
 
       <AdminInfoModal 
         visible={!!adminInfo}

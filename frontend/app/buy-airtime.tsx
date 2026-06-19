@@ -123,14 +123,14 @@ export default function BuyAirtimeScreen() {
       // Service returns response.data, so check for success in various places
       const isSuccess =
         response?.success === true ||
-        response?.data?.success === true ||
-        response?.status === 'success' ||
-        response?.data?.status === 'success';
+        (response as any)?.data?.success === true ||
+        (response as any)?.status === 'success' ||
+        (response as any)?.data?.status === 'success';
 
       const errorMessage =
         response?.message ||
-        response?.data?.message ||
-        response?.error ||
+        (response as any)?.data?.message ||
+        (response as any)?.error ||
         'Failed to purchase airtime';
 
       if (isSuccess) {

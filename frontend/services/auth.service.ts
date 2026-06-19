@@ -162,7 +162,16 @@ export const authService = {
     }
     
     // Clear any other cached data if needed
-    await AsyncStorage.multiRemove(['walletData', 'transactions', 'profileData']);
+    await AsyncStorage.multiRemove([
+      'user',
+      'userData',
+      'walletData',
+      'virtualAccount',
+      'unreadCount',
+      'recentTransactions',
+      'transactions',
+      'profileData'
+    ]);
   },
 
   /**

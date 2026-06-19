@@ -226,7 +226,7 @@ export default function AddMoneyScreen() {
   };
 
   const copyAllCardDetails = async (acc: NormalizedAccount, index: number) => {
-    const text = `Saadawa Wallet Funding:\nBank Name: ${acc.bank_name}\nAccount Number: ${acc.account_number}\nAccount Name: ${acc.account_name}`;
+    const text = `Eesher Data Wallet Funding:\nBank Name: ${acc.bank_name}\nAccount Number: ${acc.account_number}\nAccount Name: ${acc.account_name}`;
     await Clipboard.setStringAsync(text);
     
     if (Platform.OS !== 'web') {
@@ -284,7 +284,7 @@ export default function AddMoneyScreen() {
               let borderStyle = {};
               
               if (isPalmPay) {
-                cardColors = ['#4F46E5', '#3B82F6', '#1E3A8A']; // Cobalt Blue to Purple/Navy
+                cardColors = ['#8B5CF6', '#7C3AED', '#4C1D95']; // Purple/Violet gradient
               } else if (isOPay) {
                 cardColors = ['#03D186', '#059669', '#022C22']; // Bright Teal to Dark Green
               } else if (isWema) {

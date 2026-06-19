@@ -1,4 +1,4 @@
-package com.icodearewa.saadawa
+package com.icodearewa.eeshert
 
 import android.app.Application
 import android.content.res.Configuration
@@ -41,13 +41,8 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     DefaultNewArchitectureEntryPoint.releaseLevel = try {
-      val level = try {
-        BuildConfig::class.java.getField("REACT_NATIVE_RELEASE_LEVEL").get(null).toString()
-      } catch (e: Exception) {
-        "stable"
-      }
-      ReleaseLevel.valueOf(level.uppercase())
-    } catch (e: Exception) {
+      ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
+    } catch (e: IllegalArgumentException) {
       ReleaseLevel.STABLE
     }
     loadReactNative(this)
