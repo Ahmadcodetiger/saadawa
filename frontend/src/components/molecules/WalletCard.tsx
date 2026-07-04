@@ -84,7 +84,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({
   return (
     <View style={[styles.shadowContainer, style]}>
       <LinearGradient
-        colors={['#4F5BD5', '#6B72E8', '#8B5CF6']}
+        colors={['#7C3AED', '#9333EA', '#5B21B6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.container, { borderRadius: 24 }]}
@@ -105,7 +105,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({
         {/* Card Header */}
         <View style={styles.cardHeader}>
             <EMVChip />
-            <Text variant="overline" bold style={styles.cardBranding}>SAADAWA</Text>
+            <Text variant="overline" bold style={styles.cardBranding}>EESHER DATA</Text>
         </View>
 
         {/* Balance Section */}
@@ -138,7 +138,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({
 
 const styles = StyleSheet.create({
   shadowContainer: {
-    shadowColor: '#4F5BD5',
+    shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.35,
     shadowRadius: 20,

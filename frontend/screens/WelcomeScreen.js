@@ -50,7 +50,7 @@ const WelcomeScreen = () => {
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <MaterialIcons name="bolt" size={48} color="#fff" />
-          <Text style={styles.logoText}>Saadawa Data</Text>
+          <Text style={styles.logoText}>Eesher Data</Text>
         </View>
       </View>
 

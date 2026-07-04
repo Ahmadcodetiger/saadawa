@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>Saadawa Data</string>
+    <string>Eesher Data</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>vtuapp</string>
-          <string>com.icodearewa.saadawa</string>
+          <string>com.icodearewa.eeshert</string>
         </array>
       </dict>
     </array>

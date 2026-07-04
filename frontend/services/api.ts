@@ -21,9 +21,9 @@ import {
 
 // ─── API Base URL ────────────────────────────────────────────────────────────
 // Switch between these as needed:
-export const API_BASE_URL = 'http://10.24.225.9:6000/api'; // ← LOCAL (current machine on LAN)
+//export const API_BASE_URL = 'http://10.115.240.9:5000/api'; // ← LOCAL (current machine on LAN)
 // export const API_BASE_URL = 'http://localhost:5000/api';     // ← LOCAL (iOS simulator only)
-// export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // ← PRODUCTION
+export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // ← PRODUCTION
 // ─────────────────────────────────────────────────────────────────────────────
 
 

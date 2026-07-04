@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "ibdata.app"
-               BlueprintName = "ibdata"
-               ReferencedContainer = "container:ibdata.xcodeproj">
+               BuildableName = "EesherData.app"
+               BlueprintName = "EesherData"
+               ReferencedContainer = "container:EesherData.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "ibdataTests.xctest"
-               BlueprintName = "ibdataTests"
-               ReferencedContainer = "container:ibdata.xcodeproj">
+               BuildableName = "EesherDataTests.xctest"
+               BlueprintName = "EesherDataTests"
+               ReferencedContainer = "container:EesherData.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "ibdata.app"
-            BlueprintName = "ibdata"
-            ReferencedContainer = "container:ibdata.xcodeproj">
+            BuildableName = "EesherData.app"
+            BlueprintName = "EesherData"
+            ReferencedContainer = "container:EesherData.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "ibdata.app"
-            BlueprintName = "ibdata"
-            ReferencedContainer = "container:ibdata.xcodeproj">
+            BuildableName = "EesherData.app"
+            BlueprintName = "EesherData"
+            ReferencedContainer = "container:EesherData.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

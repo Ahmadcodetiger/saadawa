@@ -93,7 +93,7 @@ export default function SetPinScreen() {
           <View style={[styles.info, { backgroundColor: colors.primaryLight }]}>
              <Info size={20} color={colors.primary} weight="duotone" />
              <Text variant="caption" color="primary" style={{ flex: 1 }}>
-                Do not share your PIN with anyone. Saadawa staff will never ask for your PIN.
+                Do not share your PIN with anyone. Eesher Data staff will never ask for your PIN.
              </Text>
           </View>
       </View>
