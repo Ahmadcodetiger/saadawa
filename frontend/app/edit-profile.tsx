@@ -115,10 +115,23 @@ export default function EditProfileScreen() {
         updateProfile({ ...profileData, firstName, lastName, address, city, state, profileImage });
         // Update cached user data in AsyncStorage so dashboard avatar refreshes
         try {
+          // Update 'user' cache key
+          const cachedUser = await AsyncStorage.getItem('user');
+          if (cachedUser) {
+            const parsed = JSON.parse(cachedUser);
+            parsed.profile_image = profileImage;
+            parsed.avatar = profileImage;
+            parsed.first_name = firstName.trim();
+            parsed.last_name = lastName.trim();
+            await AsyncStorage.setItem('user', JSON.stringify(parsed));
+          }
+          
+          // Update 'userData' cache key
           const cached = await AsyncStorage.getItem('userData');
           if (cached) {
             const parsed = JSON.parse(cached);
             parsed.profile_image = profileImage;
+            parsed.avatar = profileImage;
             parsed.first_name = firstName.trim();
             parsed.last_name = lastName.trim();
             await AsyncStorage.setItem('userData', JSON.stringify(parsed));

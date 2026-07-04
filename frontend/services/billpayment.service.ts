@@ -238,6 +238,21 @@ export const billPaymentService = {
   },
 
   /**
+   * Get Cable TV Plans
+   */
+  getCableTVPlans: async (): Promise<BillPaymentResponse> => {
+    try {
+      console.log('📡 Fetching Cable TV plans...');
+      const response = await api.get<BillPaymentResponse>('/billpayment/cable-plans');
+      console.log('✅ Cable TV plans response:', response.data);
+      return normalizeResponse(response.data);
+    } catch (error: any) {
+      const normalizedError = normalizeError(error, 'Failed to fetch Cable TV plans');
+      throw normalizedError;
+    }
+  },
+
+  /**
    * Verify electricity meter
    */
   verifyElectricityMeter: async (
@@ -273,6 +288,66 @@ export const billPaymentService = {
       return normalizeResponse(response.data);
     } catch (error: any) {
       const normalizedError = normalizeError(error, 'Failed to purchase electricity');
+      throw normalizedError;
+    }
+  },
+
+  /**
+   * Get Cable TV Providers
+   */
+  getCableProviders: async (): Promise<BillPaymentResponse> => {
+    try {
+      console.log('📡 Fetching cable providers...');
+      const response = await api.get<BillPaymentResponse>('/billpayment/cable-providers');
+      console.log('✅ Cable providers response:', response.data);
+      return normalizeResponse(response.data);
+    } catch (error: any) {
+      const normalizedError = normalizeError(error, 'Failed to fetch cable providers');
+      throw normalizedError;
+    }
+  },
+
+  /**
+   * Get Electricity Providers
+   */
+  getElectricityProviders: async (): Promise<BillPaymentResponse> => {
+    try {
+      console.log('📡 Fetching electricity providers...');
+      const response = await api.get<BillPaymentResponse>('/billpayment/electricity-providers');
+      console.log('✅ Electricity providers response:', response.data);
+      return normalizeResponse(response.data);
+    } catch (error: any) {
+      const normalizedError = normalizeError(error, 'Failed to fetch electricity providers');
+      throw normalizedError;
+    }
+  },
+
+  /**
+   * Get Exam Pin Providers
+   */
+  getExamPinProviders: async (): Promise<BillPaymentResponse> => {
+    try {
+      console.log('📡 Fetching exam pin providers...');
+      const response = await api.get<BillPaymentResponse>('/billpayment/exampin-providers');
+      console.log('✅ Exam pin providers response:', response.data);
+      return normalizeResponse(response.data);
+    } catch (error: any) {
+      const normalizedError = normalizeError(error, 'Failed to fetch exam pin providers');
+      throw normalizedError;
+    }
+  },
+
+  /**
+   * Purchase Exam Pin
+   */
+  purchaseExamPin: async (data: { provider: string; quantity: number; pin: string }): Promise<BillPaymentResponse> => {
+    try {
+      console.log('🎓 Purchasing exam pin:', data);
+      const response = await api.post<BillPaymentResponse>('/billpayment/exampin', data);
+      console.log('✅ Exam pin purchase response:', response.data);
+      return normalizeResponse(response.data);
+    } catch (error: any) {
+      const normalizedError = normalizeError(error, 'Failed to purchase exam pin');
       throw normalizedError;
     }
   },

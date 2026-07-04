@@ -9,14 +9,14 @@ import { Text } from '../atoms/Text';
 
 const TAB_HEIGHT = 72;
 
-const getIcon = (routeName: string, color: string, isFocused: boolean) => {
-  const size = 24;
-  const weight = isFocused ? 'fill' : 'regular';
+const getIcon = (routeName: string, color: string, isFocused: boolean, isCenter: boolean = false) => {
+  const size = isCenter ? 26 : 24;
+  const weight = isCenter ? 'bold' : (isFocused ? 'fill' : 'regular');
   
   switch (routeName) {
     case 'index': return <House size={size} color={color} weight={weight} />;
     case 'transactions': return <Receipt size={size} color={color} weight={weight} />;
-    case 'services': return <Lightning size={26} color="white" weight="bold" />;
+    case 'services': return <Lightning size={size} color={color} weight={weight} />;
     case 'support': return <Lifebuoy size={size} color={color} weight={weight} />;
     case 'profile': return <User size={size} color={color} weight={weight} />;
     case 'wallet': return <PlusCircle size={size} color={color} weight={weight} />;
@@ -88,11 +88,19 @@ export const CustomBottomTabBar = ({ state, descriptors, navigation }: any) => {
       }
     ]}>
       {state.routes.filter((route: any) => 
-        descriptors[route.key].options.href !== null && route.name !== 'wallet'
+        ['index', 'transactions', 'services', 'support', 'profile'].includes(route.name)
       ).map((route: any, index: number) => {
         const { options } = descriptors[route.key];
         const label = options.title !== undefined ? options.title : route.name;
-        const isFocused = state.index === index;
+        
+        const activeRouteName = state.routes[state.index].name;
+        let isFocused = route.name === activeRouteName;
+        if (route.name === 'services') {
+          isFocused = isFocused || ['buy-airtime', 'buy-data', 'buy-cable', 'buy-electricity', 'buy-exampin', 'pay-bills'].includes(activeRouteName);
+        } else if (route.name === 'index') {
+          isFocused = isFocused || ['add-money'].includes(activeRouteName);
+        }
+
         const isCenter = route.name === 'services';
 
         const onPress = () => {
@@ -102,7 +110,8 @@ export const CustomBottomTabBar = ({ state, descriptors, navigation }: any) => {
             canPreventDefault: true,
           });
 
-          if (!isFocused && !event.defaultPrevented) {
+          const isExactFocused = route.name === activeRouteName;
+          if (!isExactFocused && !event.defaultPrevented) {
             navigation.navigate(route.name);
           }
         };
@@ -119,7 +128,7 @@ export const CustomBottomTabBar = ({ state, descriptors, navigation }: any) => {
                 colors={['#5B6AF0', '#7C3AED']}
                 style={styles.centerButton}
               >
-                {getIcon(route.name, 'white', true)}
+                {getIcon(route.name, 'white', true, true)}
               </LinearGradient>
               <Text
                 variant="overline"
@@ -132,7 +141,7 @@ export const CustomBottomTabBar = ({ state, descriptors, navigation }: any) => {
                   fontWeight: isFocused ? '700' : '400'
                 }}
               >
-                Quick Actions
+                {label}
               </Text>
             </TouchableOpacity>
           );

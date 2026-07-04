@@ -40,8 +40,13 @@ export class AdminController {
       admin.last_login_at = new Date();
       await admin.save();
 
+      // Retrieve dynamic role name from populated role_id
+      const roleName = admin.role_id && typeof admin.role_id === 'object' && 'name' in admin.role_id
+        ? (admin.role_id as any).name
+        : 'admin';
+
       const token = jwt.sign(
-        { id: admin._id, role: 'admin' },
+        { id: admin._id, role: roleName },
         config.jwtSecret as string,
         { expiresIn: config.jwtExpiry } as SignOptions
       );

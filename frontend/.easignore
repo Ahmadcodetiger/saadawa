@@ -1,0 +1,24 @@
+# Ignore dependency directories
+node_modules/
+
+# Ignore Expo local cache
+.expo/
+dist/
+web-build/
+
+# Ignore native Android build caches
+android/.gradle/
+android/app/build/
+android/build/
+*.keystore
+
+# Ignore native iOS build caches
+ios/build/
+ios/Pods/
+ios/.xcode.env.local
+
+# Ignore environment config files
+.env
+.env.local
+.env*.local
+*.env

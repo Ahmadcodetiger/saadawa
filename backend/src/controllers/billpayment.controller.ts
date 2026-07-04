@@ -101,6 +101,19 @@ export class BillPaymentController {
     }
   }
 
+  // Get cable TV plans
+  async getCableTVPlans(req: Request, res: Response, next: NextFunction) {
+    try {
+      const selected = await providerRegistry.getPreferredProviderFor('cable');
+      const client = selected?.client || topupmateService;
+      const plans = await (client.getCableTVPlans ? client.getCableTVPlans() : topupmateService.getCableTVPlans());
+      const payload = (plans as any).response || plans;
+      return ApiResponse.success(res, 'Cable TV plans retrieved successfully', payload);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // Get electricity providers
   async getElectricityProviders(req: Request, res: Response, next: NextFunction) {
     try {
@@ -284,7 +297,8 @@ export class BillPaymentController {
           updated_at: new Date()
         });
         console.error('❌ Airtime purchase error:', error.message, error.response?.data);
-        throw new Error(error.response?.data?.message || error.response?.data?.msg || error.message || 'Airtime purchase failed');
+        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Airtime purchase failed';
+        return ApiResponse.error(res, errMsg, 400);
       }
     } catch (error) {
       next(error);
@@ -473,7 +487,8 @@ export class BillPaymentController {
           error_message: error.message,
           updated_at: new Date()
         });
-        throw error;
+        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Data purchase failed';
+        return ApiResponse.error(res, errMsg, 400);
       }
     } catch (error) {
       next(error);
@@ -585,7 +600,8 @@ export class BillPaymentController {
           error_message: error.message,
           updated_at: new Date()
         });
-        throw error;
+        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Cable TV purchase failed';
+        return ApiResponse.error(res, errMsg, 400);
       }
     } catch (error) {
       next(error);
@@ -688,7 +704,8 @@ export class BillPaymentController {
           error_message: error.message,
           updated_at: new Date()
         });
-        throw error;
+        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Electricity purchase failed';
+        return ApiResponse.error(res, errMsg, 400);
       }
     } catch (error) {
       next(error);
@@ -778,7 +795,8 @@ export class BillPaymentController {
           error_message: error.message,
           updated_at: new Date()
         });
-        throw error;
+        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Exam pin purchase failed';
+        return ApiResponse.error(res, errMsg, 400);
       }
     } catch (error) {
       next(error);

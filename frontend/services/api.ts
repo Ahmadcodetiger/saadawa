@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './secureStore';
 import { Alert } from 'react-native';
 // import * as Network from "expo-network";
 import { paymentPointService } from './paymentpoint.service';
@@ -21,9 +21,9 @@ import {
 
 // ─── API Base URL ────────────────────────────────────────────────────────────
 // Switch between these as needed:
-//export const API_BASE_URL = 'http://10.115.240.9:5000/api'; // ← LOCAL (current machine on LAN)
+export const API_BASE_URL = 'http://10.24.225.9:6000/api'; // ← LOCAL (current machine on LAN)
 // export const API_BASE_URL = 'http://localhost:5000/api';     // ← LOCAL (iOS simulator only)
-export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // ← PRODUCTION
+// export const API_BASE_URL = 'https://saadawa.vercel.app/api'; // ← PRODUCTION
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -135,7 +135,16 @@ api.interceptors.response.use(
         try {
           // Clear auth data
           await SecureStore.deleteItemAsync('authToken');
-          await AsyncStorage.multiRemove(['user', 'walletData', 'transactions', 'profileData']);
+          await AsyncStorage.multiRemove([
+            'user',
+            'userData',
+            'walletData',
+            'virtualAccount',
+            'unreadCount',
+            'recentTransactions',
+            'transactions',
+            'profileData'
+          ]);
 
           // Clear API auth header
           if (api.defaults.headers.common['Authorization']) {

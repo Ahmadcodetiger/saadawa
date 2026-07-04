@@ -11,7 +11,7 @@ interface ServiceItemProps {
   label: string;
   icon: React.ReactNode;
   onPress: () => void;
-  color?: string;
+  color?: string; // background color of the icon wrapper
 }
 
 export const ServiceItem: React.FC<ServiceItemProps> = ({
@@ -20,7 +20,7 @@ export const ServiceItem: React.FC<ServiceItemProps> = ({
   onPress,
   color,
 }) => {
-  const { colors, theme, isDark } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const scale = useSharedValue(1);
 
   const handlePressIn = () => {
@@ -40,8 +40,8 @@ export const ServiceItem: React.FC<ServiceItemProps> = ({
     transform: [{ scale: scale.value }],
   }));
 
-  // Extract color for shadow
-  const iconColor = (icon as any)?.props?.color || colors.primary;
+  // Background color is passed directly from index.tsx (already isDark-aware)
+  const bgColor = color || (isDark ? 'rgba(99,102,241,0.15)' : colors.surface);
 
   return (
     <AnimatedTouchable
@@ -51,18 +51,17 @@ export const ServiceItem: React.FC<ServiceItemProps> = ({
       onPressOut={handlePressOut}
       activeOpacity={0.9}
     >
-      <View style={[
-        styles.iconWrapper, 
-        { 
-            backgroundColor: color || colors.surface,
-            shadowColor: iconColor,
-            ...(isDark ? {
-              shadowOpacity: 0.35,
-              shadowRadius: 10,
-              elevation: 4,
-            } : {})
-        }
-      ]}>
+      <View
+        style={[
+          styles.iconWrapper,
+          {
+            backgroundColor: bgColor,
+            ...(isDark
+              ? { shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }
+              : {}),
+          },
+        ]}
+      >
         {icon}
       </View>
       <Text variant="labelMedium" style={[styles.label, { color: colors.textPrimary }]}>
@@ -75,7 +74,7 @@ export const ServiceItem: React.FC<ServiceItemProps> = ({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    width: '25%', // 4 items per row
+    width: '25%',
     paddingVertical: 12,
   },
   iconWrapper: {
@@ -85,7 +84,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
-    // Subtle inner shadow
     ...Platform.select({
       ios: {
         shadowOffset: { width: 0, height: 4 },

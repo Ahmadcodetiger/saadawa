@@ -71,10 +71,10 @@ const OnboardingScreen = ({ navigation }) => {
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Image
-            source={require('../assets/images/logo.png')} // Replace with your logo
+            source={require('../assets/images/saadawalogo.png')}
             style={styles.logo}
           />
-          <Text style={styles.logoText}>Connecta VTU</Text>
+          <Text style={styles.logoText}>Saadawa Data</Text>
         </View>
       </View>
 

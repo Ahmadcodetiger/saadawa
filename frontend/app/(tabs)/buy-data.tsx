@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Modal, FlatList, Platform, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Phone, Key, Info, WifiHigh } from 'phosphor-react-native';
+import { Phone, Key, Info, WifiHigh, AddressBook } from 'phosphor-react-native';
+import * as Contacts from 'expo-contacts';
 
-import { useAppTheme } from '../src/theme/ThemeContext';
-import { Text } from '../src/components/atoms/Text';
-import { Button } from '../src/components/atoms/Button';
-import { Input } from '../src/components/atoms/Input';
-import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
-import { NetworkSelector, Network } from '../src/components/molecules/NetworkSelector';
-import { SelectInput } from '../src/components/molecules/SelectInput';
+import { useAppTheme } from '../../src/theme/ThemeContext';
+import { Text } from '../../src/components/atoms/Text';
+import { Button } from '../../src/components/atoms/Button';
+import { Input } from '../../src/components/atoms/Input';
+import { ScreenWrapper } from '../../src/components/templates/ScreenWrapper';
+import { NetworkSelector, Network } from '../../src/components/molecules/NetworkSelector';
+import { SelectInput } from '../../src/components/molecules/SelectInput';
 import { useAlert } from '@/components/AlertContext';
 import { billPaymentService } from '@/services/billpayment.service';
 
@@ -23,6 +24,71 @@ export default function BuyDataScreen() {
   const [selectedNetworkId, setSelectedNetworkId] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Contact Picker States
+  const [contactsModalVisible, setContactsModalVisible] = useState(false);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [contactsError, setContactsError] = useState('');
+  const [contactsLoading, setContactsLoading] = useState(false);
+
+  const handlePickContact = async () => {
+    if (Platform.OS === 'web') {
+      showError('Contact picker is only supported on mobile devices.');
+      return;
+    }
+    
+    setContactsLoading(true);
+    setContactsError('');
+    setContactsModalVisible(true);
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status === 'granted') {
+        const { data } = await Contacts.getContactsAsync({
+          fields: [Contacts.Fields.PhoneNumbers],
+        });
+        
+        if (data && data.length > 0) {
+          const formatted = data.map((c: any) => {
+            const rawPhone = c.phoneNumbers?.[0]?.number || '';
+            return {
+              id: c.id,
+              name: c.name || 'No Name',
+              phoneNumber: rawPhone,
+            };
+          }).filter(c => !!c.phoneNumber);
+          
+          setContacts(formatted);
+        } else {
+          setContacts([]);
+          setContactsError('No contacts found on your device.');
+        }
+      } else {
+        setContactsError('Permission to access contacts was denied.');
+        showError('Permission to access contacts was denied.');
+      }
+    } catch (e: any) {
+      console.warn('Failed to load contacts:', e);
+      setContactsError('Failed to load contacts from your device.');
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  const handleSelectContact = (phone: string) => {
+    let clean = phone.replace(/\D/g, '');
+    if (clean.startsWith('234') && clean.length > 10) {
+      clean = '0' + clean.slice(3);
+    }
+    setPhoneNumber(clean.slice(0, 11));
+    setContactsModalVisible(false);
+    setSearchQuery('');
+  };
+
+  const filteredContacts = contacts.filter(c => {
+    const query = searchQuery.toLowerCase();
+    return c.name.toLowerCase().includes(query) || c.phoneNumber.replace(/\D/g, '').includes(query);
+  });
   
   const [networks, setNetworks] = useState<Network[]>([
     { id: 'mtn', name: 'MTN', color: '#FFCC00' },
@@ -121,7 +187,11 @@ export default function BuyDataScreen() {
             onChangeText={(v: string) => setPhoneNumber(v.replace(/\D/g, '').slice(0, 11))}
             keyboardType="phone-pad"
             maxLength={11}
-            rightIcon={<Phone size={20} color={colors.textTertiary} />}
+            rightIcon={
+              <TouchableOpacity onPress={handlePickContact} style={{ padding: 4 }}>
+                <AddressBook size={22} color={colors.primary} weight="duotone" />
+              </TouchableOpacity>
+            }
         />
       </View>
 
@@ -200,6 +270,66 @@ export default function BuyDataScreen() {
          </Text>
       </View>
 
+      <Modal
+        visible={contactsModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setContactsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <View style={styles.modalHeader}>
+              <Text variant="headingSmall" bold>Select Contact</Text>
+              <TouchableOpacity onPress={() => setContactsModalVisible(false)}>
+                <Text variant="bodyMedium" color="primary" bold>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Input
+              placeholder="Search contacts..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              containerStyle={{ marginBottom: 16 }}
+            />
+
+            {contactsLoading ? (
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 32 }} />
+            ) : contactsError ? (
+              <View style={styles.emptyContainer}>
+                <Text variant="bodyMedium" color="textSecondary">{contactsError}</Text>
+              </View>
+            ) : filteredContacts.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text variant="bodyMedium" color="textSecondary">No contacts found</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredContacts}
+                keyExtractor={(item) => item.id}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[styles.contactItem, { borderBottomColor: colors.border }]}
+                    onPress={() => handleSelectContact(item.phoneNumber)}
+                  >
+                    <View style={[styles.contactAvatar, { backgroundColor: colors.primaryLight }]}>
+                      <Text variant="bodyMedium" bold color="primary">
+                        {item.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text variant="bodyMedium" bold>{item.name}</Text>
+                      <Text variant="caption" color="textSecondary">{item.phoneNumber}</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                style={{ maxHeight: 350 }}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <View style={{ height: 100 }} />
     </ScreenWrapper>
   );
@@ -245,5 +375,42 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     gap: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+    minHeight: '60%',
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    gap: 16,
+  },
+  contactAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
   },
 });

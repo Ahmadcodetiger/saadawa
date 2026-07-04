@@ -30,6 +30,7 @@ router.get('/networks', billPaymentController.getNetworks);
 router.get('/data-plans', billPaymentController.getDataPlans);
 router.get('/plans', billPaymentController.getDeveloperPlans);
 router.get('/cable-providers', billPaymentController.getCableProviders);
+router.get('/cable-plans', billPaymentController.getCableTVPlans);
 router.get('/electricity-providers', billPaymentController.getElectricityProviders);
 router.get('/exampin-providers', billPaymentController.getExamPinProviders);
 

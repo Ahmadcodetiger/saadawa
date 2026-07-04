@@ -48,7 +48,8 @@ const AdminManagement: React.FC = () => {
   const roles = rolesData || [];
 
   // Only Super Admin can access this page
-  if (user?.role?.name !== 'Super Admin') {
+  const roleName = user?.role_id?.name || user?.role?.name || '';
+  if (roleName !== 'super_admin' && roleName !== 'Super Admin') {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
         <div className="text-center">

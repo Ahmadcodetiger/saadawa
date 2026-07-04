@@ -26,14 +26,15 @@ import {
 } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
 
-import { useAppTheme } from '../src/theme/ThemeContext';
-import { Text } from '../src/components/atoms/Text';
-import { Button } from '../src/components/atoms/Button';
-import { Input } from '../src/components/atoms/Input';
-import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
+import { useAppTheme } from '../../src/theme/ThemeContext';
+import { Text } from '../../src/components/atoms/Text';
+import { Button } from '../../src/components/atoms/Button';
+import { Input } from '../../src/components/atoms/Input';
+import { ScreenWrapper } from '../../src/components/templates/ScreenWrapper';
 import { useAlert } from '@/components/AlertContext';
 import { authService } from '@/services/auth.service';
 import { paymentPointService } from '@/services/paymentpoint.service';
+import { userService } from '@/services/user.service';
 
 type IdType = 'bvn' | 'nin';
 
@@ -158,7 +159,12 @@ export default function AddMoneyScreen() {
         idNumber: kycIdNumber,
       });
 
-      showSuccess('Virtual account generated!');
+      // Mark KYC as verified since the user provided their NIN/BVN
+      try {
+        await userService.uploadKYC({ document_type: kycIdType, document_number: kycIdNumber });
+      } catch (_) { /* non-blocking */ }
+
+      showSuccess('Virtual account generated & KYC verified!');
       loadVirtualAccount();
     } catch (error: any) {
       showError(error.message || 'Failed to create account');
@@ -284,7 +290,7 @@ export default function AddMoneyScreen() {
               let borderStyle = {};
               
               if (isPalmPay) {
-                cardColors = ['#4F46E5', '#3B82F6', '#1E3A8A']; // Cobalt Blue to Purple/Navy
+                cardColors = ['#8B5CF6', '#7C3AED', '#4C1D95']; // Purple/Violet gradient
               } else if (isOPay) {
                 cardColors = ['#03D186', '#059669', '#022C22']; // Bright Teal to Dark Green
               } else if (isWema) {

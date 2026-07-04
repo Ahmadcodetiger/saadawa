@@ -9,7 +9,7 @@ const router = Router();
 
 // Admin routes
 router.post('/login', AdminController.login);
-router.get('/dashboard', authMiddleware, authorize(['admin']), AdminController.getDashboardStats);
+router.get('/dashboard', authMiddleware, authorize(['admin', 'super_admin']), AdminController.getDashboardStats);
 // Admin profile
 router.put('/profile', authMiddleware, authorize(['admin', 'super_admin']), AdminController.updateAdminProfile);
 router.put('/profile/password', authMiddleware, authorize(['admin', 'super_admin']), AdminController.changeAdminPassword);

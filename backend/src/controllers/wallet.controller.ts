@@ -1,9 +1,12 @@
 // controllers/wallet.controller.ts
 import { Response } from 'express';
-import { Wallet, Transaction } from '../models/index.js';
+import { Wallet, Transaction, User } from '../models/index.js';
 import { WalletService } from '../services/wallet.service.js';
+import { NotificationService } from '../services/notification.service.js';
 import { ApiResponse } from '../utils/response.js';
 import { AuthRequest } from '../types/index.js';
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 export class WalletController {
   static async getWallet(req: AuthRequest, res: Response) {
@@ -116,24 +119,144 @@ export class WalletController {
 
   static async transferFunds(req: AuthRequest, res: Response) {
     try {
-      const { recipient_email, amount, remarks } = req.body;
+      const { recipient, recipient_email, recipientId, amount, remarks, note, pin } = req.body;
+      const targetRecipient = recipient || recipient_email || recipientId;
 
-      if (amount <= 0) {
+      if (!amount || amount <= 0) {
         return ApiResponse.error(res, 'Invalid amount', 400);
       }
 
-      const senderWallet = await Wallet.findOne({ user_id: req.user?.id });
+      if (!targetRecipient) {
+        return ApiResponse.error(res, 'Recipient details are required', 400);
+      }
+
+      const senderId = req.user?.id;
+      if (!senderId) {
+        return ApiResponse.error(res, 'User not authenticated', 401);
+      }
+
+      const senderWallet = await Wallet.findOne({ user_id: senderId });
       if (!senderWallet) {
         return ApiResponse.error(res, 'Sender wallet not found', 404);
       }
 
-      if (senderWallet.balance < amount) {
-        return ApiResponse.error(res, 'Insufficient balance', 400);
+      const senderUser = await User.findById(senderId);
+      if (!senderUser) {
+        return ApiResponse.error(res, 'Sender not found', 404);
       }
 
-      await WalletService.debitWallet(senderWallet.user_id, amount);
+      // Check transaction PIN if set
+      if (senderUser.transaction_pin) {
+        if (!pin) {
+          return ApiResponse.error(res, 'Transaction PIN is required', 400);
+        }
+        const pinOk = await bcrypt.compare(String(pin), senderUser.transaction_pin);
+        if (!pinOk) {
+          return ApiResponse.error(res, 'Incorrect transaction PIN', 400);
+        }
+      }
 
-      return ApiResponse.success(res, null, 'Transfer initiated successfully');
+      // Fee logic: 0 Naira fee for P2P transfers (as the 50 Naira fee only applies to wallet funding)
+      const fee = 0;
+      const totalCharged = amount; 
+      const creditAmount = amount; 
+
+      if (senderWallet.balance < totalCharged) {
+        return ApiResponse.error(res, `Insufficient balance. You need at least ₦${totalCharged} in your wallet`, 400);
+      }
+
+      // Find recipient
+      let recipientUser = null;
+      if (mongoose.Types.ObjectId.isValid(targetRecipient)) {
+        recipientUser = await User.findById(targetRecipient);
+      }
+      if (!recipientUser) {
+        recipientUser = await User.findOne({
+          $or: [
+            { email: targetRecipient },
+            { phone_number: targetRecipient }
+          ]
+        });
+      }
+
+      if (!recipientUser) {
+        return ApiResponse.error(res, 'Recipient user not found', 404);
+      }
+
+      if (recipientUser._id.toString() === senderId.toString()) {
+        return ApiResponse.error(res, 'Cannot transfer funds to yourself', 400);
+      }
+
+      // Get or create recipient wallet
+      let recipientWallet = await Wallet.findOne({ user_id: recipientUser._id });
+      if (!recipientWallet) {
+        recipientWallet = await Wallet.create({
+          user_id: recipientUser._id,
+          balance: 0,
+          currency: 'NGN'
+        });
+      }
+
+      // Perform transaction (debit sender, credit recipient)
+      await WalletService.debitWallet(senderUser._id, totalCharged);
+      await WalletService.creditWallet(recipientUser._id, creditAmount);
+
+      // Create transaction logs
+      // 1. Sender transaction
+      const senderTxnRef = `TXN-TRSF-S-${Date.now()}`;
+      await Transaction.create({
+        user_id: senderUser._id,
+        wallet_id: senderWallet._id,
+        type: 'transfer',
+        amount: creditAmount,
+        fee: fee,
+        total_charged: totalCharged,
+        status: 'successful',
+        reference_number: senderTxnRef,
+        payment_method: 'wallet',
+        destination_account: recipientUser.email,
+        description: remarks || note || `Fund transfer to ${recipientUser.first_name} ${recipientUser.last_name}`
+      });
+
+      // 2. Recipient transaction
+      const recipientTxnRef = `TXN-TRSF-R-${Date.now()}`;
+      await Transaction.create({
+        user_id: recipientUser._id,
+        wallet_id: recipientWallet._id,
+        type: 'credit',
+        amount: creditAmount,
+        fee: 0,
+        total_charged: creditAmount,
+        status: 'successful',
+        reference_number: recipientTxnRef,
+        payment_method: 'wallet',
+        description: `Fund transfer received from ${senderUser.first_name} ${senderUser.last_name}`
+      });
+
+      // Send notifications
+      try {
+        // Notify sender
+        await NotificationService.createNotification({
+          user_id: senderUser._id,
+          type: 'transaction_alert',
+          title: 'Transfer Sent',
+          message: `You successfully transferred ₦${amount} to ${recipientUser.first_name} ${recipientUser.last_name}.`,
+          action_link: `/transactions`
+        });
+        // Notify recipient
+        await NotificationService.createNotification({
+          user_id: recipientUser._id,
+          type: 'transaction_alert',
+          title: 'Transfer Received',
+          message: `You received ₦${amount} from ${senderUser.first_name} ${senderUser.last_name}`,
+          action_link: `/transactions`
+        });
+      } catch (err) {
+        console.error('Failed to send transfer notifications:', err);
+      }
+
+      const updatedWallet = await Wallet.findOne({ user_id: senderId });
+      return ApiResponse.success(res, { balance: updatedWallet?.balance || 0 }, 'Transfer completed successfully');
     } catch (error: any) {
       return ApiResponse.error(res, error.message, 500);
     }

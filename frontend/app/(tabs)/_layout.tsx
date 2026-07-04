@@ -10,6 +10,7 @@ export default function TabLayout() {
         headerShown: false,
         animation: 'fade',
       }}
+      initialRouteName="index"
     >
       <Tabs.Screen
         name="index"
@@ -20,7 +21,7 @@ export default function TabLayout() {
         name="transactions"
         options={{ title: 'Activity' }}
       />
- 
+
       <Tabs.Screen
         name="services"
         options={{ title: 'Quick Actions' }}
@@ -38,6 +39,41 @@ export default function TabLayout() {
  
       <Tabs.Screen
         name="wallet"
+        options={{ href: null }}
+      />
+
+      <Tabs.Screen
+        name="buy-airtime"
+        options={{ href: null }}
+      />
+
+      <Tabs.Screen
+        name="buy-data"
+        options={{ href: null }}
+      />
+
+      <Tabs.Screen
+        name="buy-cable"
+        options={{ href: null }}
+      />
+
+      <Tabs.Screen
+        name="buy-electricity"
+        options={{ href: null }}
+      />
+
+      <Tabs.Screen
+        name="buy-exampin"
+        options={{ href: null }}
+      />
+
+      <Tabs.Screen
+        name="add-money"
+        options={{ href: null }}
+      />
+
+      <Tabs.Screen
+        name="pay-bills"
         options={{ href: null }}
       />
     </Tabs>

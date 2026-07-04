@@ -148,7 +148,7 @@ const Profile: React.FC = () => {
                   </h3>
                   <p className="text-slate-600">{admin?.email}</p>
                   <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
-                    {admin?.role_id?.role_name?.replace('_', ' ').toUpperCase() || 'ADMIN'}
+                    {(admin?.role_id?.name || admin?.role_id?.role_name)?.replace('_', ' ').toUpperCase() || 'ADMIN'}
                   </span>
                 </div>
               </div>
@@ -196,7 +196,7 @@ const Profile: React.FC = () => {
                     <input 
                       type="text" 
                       className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 font-medium" 
-                      value={admin?.role_id?.role_name?.replace('_', ' ').toUpperCase() || 'ADMIN'} 
+                      value={(admin?.role_id?.name || admin?.role_id?.role_name)?.replace('_', ' ').toUpperCase() || 'ADMIN'} 
                       readOnly 
                     />
                   </div>

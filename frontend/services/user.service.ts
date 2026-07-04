@@ -1,4 +1,5 @@
 import api from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface UserUpdateData {
   first_name?: string;
@@ -81,6 +82,14 @@ export const userService = {
   uploadKYC: async (data: { document_type: string; document_number: string; document_image?: string }): Promise<any> => {
     try {
       const response = await api.post('/users/kyc', data);
+      // Update the cached user so the KYC badge updates immediately
+      if (response.data?.data) {
+        const cached = await AsyncStorage.getItem('user');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          await AsyncStorage.setItem('user', JSON.stringify({ ...parsed, kyc_status: response.data.data.kyc_status }));
+        }
+      }
       return response.data;
     } catch (error: any) {
       throw error.response?.data || { success: false, message: 'KYC upload failed' };

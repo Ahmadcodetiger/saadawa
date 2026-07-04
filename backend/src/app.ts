@@ -35,9 +35,48 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // CORS Configuration - Restrict to trusted origins in production
-const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:19000', 'http://localhost:19006', 'http://localhost:8081', 'https://saadawa-admin.vercel.app'];
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:19000', 'http://localhost:19006', 'http://localhost:8081', 'http://localhost:5173', 'https://saadawa-admin.vercel.app'];
+
+const corsOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  // Allow requests with no origin (like mobile apps, curl, postman)
+  if (!origin) {
+    return callback(null, true);
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    // In development/test, we can safely allow the request origin to avoid CORS issues
+    return callback(null, true);
+  }
+
+  // Always allow localhost / 127.0.0.1
+  if (/^https?:\/\/localhost(:\d+)?$/.test(origin) || /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+    return callback(null, true);
+  }
+
+  // Always allow Vercel deployment domains (including branch previews and renamed projects)
+  if (/\.vercel\.app$/.test(origin)) {
+    return callback(null, true);
+  }
+
+  // Check if it's explicitly allowed
+  if (allowedOrigins.includes(origin)) {
+    return callback(null, true);
+  }
+
+  // Otherwise check if any pattern matches
+  const isAllowedPattern = allowedOrigins.some(allowed => {
+    return origin.startsWith(allowed) || allowed === '*';
+  });
+
+  if (isAllowedPattern) {
+    return callback(null, true);
+  }
+
+  return callback(null, false);
+};
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? allowedOrigins : '*',
+  origin: corsOrigin,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-KEY', 'X-Requested-With'],
   credentials: true

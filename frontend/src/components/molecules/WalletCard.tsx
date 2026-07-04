@@ -101,7 +101,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({
             <View style={[styles.visaCircle, { backgroundColor: 'rgba(255,255,255,0.15)' }]} />
             <View style={[styles.visaCircle, { backgroundColor: 'rgba(255,255,255,0.15)', marginLeft: -12 }]} />
         </View>
-
+ 
         {/* Card Header */}
         <View style={styles.cardHeader}>
             <EMVChip />

@@ -374,16 +374,20 @@ export const paymentWebhook = async (req: Request, res: Response) => {
       const walletModule = await import('../services/wallet.service.js');
       const currentWalletService = walletModule.WalletService;
 
-      await currentWalletService.creditWallet(virtualAccount.user, amount);
+      // Fee logic: 50 Naira is deducted from the funded amount
+      const fee = 50;
+      const creditAmount = Math.max(0, amount - fee);
+
+      await currentWalletService.creditWallet(virtualAccount.user, creditAmount);
       const updatedWallet = await Wallet.findOne({ user_id: virtualAccount.user });
-      const newBalance = updatedWallet?.balance || (previousBalance + amount);
+      const newBalance = updatedWallet?.balance || (previousBalance + creditAmount);
       
       const transaction = new Transaction({
         user_id: virtualAccount.user,
         wallet_id: wallet._id,
         type: 'wallet_topup',
-        amount: amount,
-        fee: 0,
+        amount: creditAmount,
+        fee: fee,
         total_charged: amount,
         status: 'successful',
         reference_number: reference,
@@ -399,7 +403,7 @@ export const paymentWebhook = async (req: Request, res: Response) => {
       });
       await transaction.save();
       
-      console.log(`✅ SUCCESS: Wallet credited ${user.email} with ₦${amount}. New balance: ₦${newBalance}`);
+      console.log(`✅ SUCCESS: Wallet credited ${user.email} with ₦${creditAmount} (Fee: ₦${fee}). New balance: ₦${newBalance}`);
     } else {
       console.warn('⚠️ Invalid amount or account number in payload:', { amount, accountNumber });
     }

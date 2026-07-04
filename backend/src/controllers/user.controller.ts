@@ -43,20 +43,30 @@ export class UserController {
 
   static async uploadKYC(req: AuthRequest, res: Response) {
     try {
-      const { kyc_document_id_front_url, kyc_document_id_back_url } = req.body;
+      const { kyc_document_id_front_url, kyc_document_id_back_url, document_type, document_number } = req.body;
+
+      // If a NIN or BVN number is provided, mark KYC as verified immediately
+      const hasIdNumber = document_number && document_number.length >= 10;
+      const kycStatus = hasIdNumber ? 'verified' : 'pending';
 
       const user = await User.findByIdAndUpdate(
         req.user?.id,
         {
-          kyc_document_id_front_url,
-          kyc_document_id_back_url,
-          kyc_status: 'pending',
+          ...(kyc_document_id_front_url && { kyc_document_id_front_url }),
+          ...(kyc_document_id_back_url && { kyc_document_id_back_url }),
+          ...(document_type && { document_type }),
+          ...(document_number && { document_number }),
+          kyc_status: kycStatus,
           updated_at: new Date()
         },
         { new: true }
       ).select('-password_hash');
 
-      return ApiResponse.success(res, user, 'KYC documents uploaded successfully');
+      const message = kycStatus === 'verified'
+        ? 'KYC verified successfully!'
+        : 'KYC documents uploaded successfully';
+
+      return ApiResponse.success(res, user, message);
     } catch (error: any) {
       return ApiResponse.error(res, error.message, 500);
     }

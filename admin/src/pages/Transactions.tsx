@@ -179,8 +179,8 @@ const Transactions: React.FC = () => {
                             </td>
                             <td className="px-6 py-4">
                               <div>
-                                <p className="font-medium text-slate-900">{txn.user?.first_name} {txn.user?.last_name}</p>
-                                <p className="text-xs text-slate-500">{txn.user?.email}</p>
+                                <p className="font-medium text-slate-900">{txn.user_id?.first_name} {txn.user_id?.last_name}</p>
+                                <p className="text-xs text-slate-500">{txn.user_id?.email}</p>
                               </div>
                             </td>
                             <td className="px-6 py-4">

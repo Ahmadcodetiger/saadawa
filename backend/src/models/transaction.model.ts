@@ -9,7 +9,7 @@ const transactionSchema = new Schema<ITransaction>({
     type: String, 
     enum: [
       'airtime_topup', 'data_purchase', 'bill_payment', 'wallet_topup',
-      'e-pin_purchase', 'airtime', 'data', 'cable', 'electricity', 'exampin', 'e-pin', 'credit'
+      'e-pin_purchase', 'airtime', 'data', 'cable', 'electricity', 'exampin', 'e-pin', 'credit', 'transfer'
     ],
     required: true 
   },

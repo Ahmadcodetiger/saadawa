@@ -31,14 +31,19 @@ export const authenticate = authMiddleware;
 
 export const authorize = (roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user || (req.user.role && !roles.includes(req.user.role))) {
-      // If role is present but not in allowed list
+    if (!req.user || !req.user.role) {
       return ApiResponse.error(res, 'Unauthorized access', 403);
     }
-    // If no role in token, we might want to fetch user to check role, 
-    // but for now let's assume token has role or we proceed if we can't check.
-    // Better: if no role in token, assume unauthorized if roles are required.
-    if (!req.user || !req.user.role || !roles.includes(req.user.role)) {
+
+    // Normalize role string (e.g. "Super Admin" -> "super_admin")
+    const userRole = req.user.role.toLowerCase().replace(/\s+/g, '_');
+
+    // super_admin gets access to everything
+    if (userRole === 'super_admin') {
+      return next();
+    }
+
+    if (!roles.includes(userRole)) {
       return ApiResponse.error(res, 'Unauthorized access', 403);
     }
     next();

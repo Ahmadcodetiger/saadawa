@@ -12,4 +12,20 @@ const notificationSchema = new Schema<INotification>({
   action_link: { type: String }
 });
 
+notificationSchema.set('toJSON', {
+  virtuals: true,
+  transform: (doc, ret: any) => {
+    ret.is_read = ret.read_status;
+    return ret;
+  }
+});
+
+notificationSchema.set('toObject', {
+  virtuals: true,
+  transform: (doc, ret: any) => {
+    ret.is_read = ret.read_status;
+    return ret;
+  }
+});
+
 export const Notification = mongoose.model<INotification>('Notification', notificationSchema);

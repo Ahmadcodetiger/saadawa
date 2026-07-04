@@ -14,22 +14,22 @@ import {
   CaretRight 
 } from 'phosphor-react-native';
 
-import { useAppTheme } from '../src/theme/ThemeContext';
-import { Text } from '../src/components/atoms/Text';
-import { ScreenWrapper } from '../src/components/templates/ScreenWrapper';
-import { ServiceCard } from '../src/components/molecules/ServiceCard';
+import { useAppTheme } from '../../src/theme/ThemeContext';
+import { Text } from '../../src/components/atoms/Text';
+import { ScreenWrapper } from '../../src/components/templates/ScreenWrapper';
+import { ServiceCard } from '../../src/components/molecules/ServiceCard';
 
 export default function PayBillsScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
 
   const billCategories = [
-    { id: 1, title: 'Electricity', desc: 'Prepaid & Postpaid', icon: Flashlight, color: '#EAB308' },
-    { id: 2, title: 'Cable TV', desc: 'DSTV, GOTV & Startimes', icon: Television, color: '#9333EA' },
-    { id: 3, title: 'Internet', desc: 'Smile, Spectranet & more', icon: Globe, color: '#06B6D4' },
-    { id: 4, title: 'Water', desc: 'State Water Boards', icon: Drop, color: '#0EA5E9' },
-    { id: 5, title: 'Waste', desc: 'State Waste Management', icon: Trash, color: '#10B981' },
-    { id: 6, title: 'Tax', desc: 'State & Federal Tax', icon: Receipt, color: '#6366F1' },
+    { id: 1, title: 'Electricity', desc: 'Prepaid & Postpaid', icon: Flashlight, color: '#EAB308', route: '/buy-electricity' },
+    { id: 2, title: 'Cable TV', desc: 'DSTV, GOTV & Startimes', icon: Television, color: '#9333EA', route: '/buy-cable' },
+    { id: 3, title: 'Exam Pin', desc: 'WAEC, NECO & NABTEB', icon: Receipt, color: '#F43F5E', route: '/buy-exampin' },
+    { id: 4, title: 'Internet', desc: 'Smile, Spectranet & more', icon: Globe, color: '#06B6D4' },
+    { id: 5, title: 'Water', desc: 'State Water Boards', icon: Drop, color: '#0EA5E9' },
+    { id: 6, title: 'Waste', desc: 'State Waste Management', icon: Trash, color: '#10B981' },
   ];
 
   const recentBills = [
@@ -71,7 +71,13 @@ export default function PayBillsScreen() {
                     description={cat.desc}
                     icon={cat.icon}
                     color={cat.color}
-                    onPress={() => console.log('Press', cat.title)}
+                    onPress={() => {
+                      if (cat.route) {
+                        router.push(cat.route as any);
+                      } else {
+                        console.log('Press', cat.title);
+                      }
+                    }}
                 />
             ))}
         </View>

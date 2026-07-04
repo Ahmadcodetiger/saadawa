@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './secureStore';
 import api from './api';
 
 export interface RegisterData {
@@ -162,7 +162,16 @@ export const authService = {
     }
     
     // Clear any other cached data if needed
-    await AsyncStorage.multiRemove(['walletData', 'transactions', 'profileData']);
+    await AsyncStorage.multiRemove([
+      'user',
+      'userData',
+      'walletData',
+      'virtualAccount',
+      'unreadCount',
+      'recentTransactions',
+      'transactions',
+      'profileData'
+    ]);
   },
 
   /**

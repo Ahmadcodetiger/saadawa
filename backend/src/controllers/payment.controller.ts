@@ -306,15 +306,18 @@ export const payrantWebhook = async (req: Request, res: Response) => {
               await wallet.save();
             }
 
-            wallet.balance += amount;
+            const fee = 50;
+            const creditAmount = Math.max(0, amount - fee);
+
+            wallet.balance += creditAmount;
             await wallet.save();
 
             await Transaction.create({
               user_id: user._id,
               wallet_id: wallet._id,
               type: 'wallet_topup',
-              amount,
-              fee: 0,
+              amount: creditAmount,
+              fee,
               total_charged: amount,
               status: 'successful',
               reference_number: reference,
@@ -323,7 +326,7 @@ export const payrantWebhook = async (req: Request, res: Response) => {
               destination_account: accountNumber,
             });
 
-            console.log(`✅ Payrant wallet credited: ${user.email} - ₦${amount}`);
+            console.log(`✅ Payrant wallet credited: ${user.email} - ₦${creditAmount} (Fee: ₦${fee})`);
           }
         }
       }

@@ -129,7 +129,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setIsMobileOpen }) => {
 
   // Filter nav items based on role
   const filteredNavItems = navItems.filter(item => {
-    if (user?.role?.name === 'API Manager') {
+    const roleName = user?.role_id?.name || user?.role?.name || '';
+    if (roleName === 'API Manager') {
       return ['/api-management', '/notifications'].includes(item.to);
     }
     return true; // Super Admin sees everything
@@ -166,7 +167,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setIsMobileOpen }) => {
                 </svg>
               </div>
               <div>
-                <h1 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
+                <h1 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent font-sans">
                   Saadawa
                 </h1>
                 <p className="text-xs text-slate-400">Admin Panel</p>
