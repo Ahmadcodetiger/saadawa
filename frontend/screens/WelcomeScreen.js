@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -49,8 +49,8 @@ const WelcomeScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <MaterialIcons name="bolt" size={48} color="#fff" />
-          <Text style={styles.logoText}>Eesher Data</Text>
+          <Image source={require('../assets/images/saadawalogo.png')} style={styles.logo} />
+          <Text style={styles.logoText}>Saadawa</Text>
         </View>
       </View>
 
@@ -125,6 +125,11 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     marginBottom: 20,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    resizeMode: 'contain',
   },
   logoText: {
     color: '#111418',

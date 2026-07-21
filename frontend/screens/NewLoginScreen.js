@@ -98,7 +98,7 @@ export default function LoginScreen() {
       >
         <View style={styles.logoContainer}>
           <Image 
-            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCNmLt70vBl51N44lPp2_PhjggOAG8xKje7lYXmWc8X24jwhToxdayIVXORUOtpNLKUAckLXftXWI7ofIthz26meu2eTrKWvy6P5nHxlHRt8dTiEojOQYtZozWxl3HGOXPv3QlJO5NxLyS6bc5TZnW6A8cbhEj0M23nYWfDMEdtgGLqE-jv1F_9GaGc_gYRxq_gWYGl1aJCWaN-YpIfYxAkjigmOMsGiHgtUlWOLR3V2ynPCxJWg50VYJ_i179vEcrEekVRiL_O3oE' }} 
+            source={require("../assets/images/saadawalogo.png")} 
             style={styles.logo} 
           />
           <Text style={styles.title}>Welcome to Connecta</Text>

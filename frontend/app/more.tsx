@@ -63,7 +63,7 @@ export default function MoreScreen() {
     <ScreenWrapper scroll>
       <View style={styles.header}>
         <Text variant="headingMedium" bold>Other Services</Text>
-        <Text variant="bodySmall" color="textSecondary">Explore more ways to use Eesher Data</Text>
+        <Text variant="bodySmall" color="textSecondary">Explore more ways to use Saadawa</Text>
       </View>
 
       <View style={styles.grid}>

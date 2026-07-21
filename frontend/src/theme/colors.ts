@@ -7,17 +7,17 @@
 
 export const palette = {
   // Brand Colors
-  indigo: {
-    50: '#F5F3FF',
-    100: '#EDE9FE',
-    200: '#DDD6FE',
-    300: '#C4B5FD',
-    400: '#A78BFA',
-    500: '#8B5CF6', // Primary Purple
-    600: '#7C3AED', // Primary Dark Purple
-    700: '#6D28D9',
-    800: '#5B21B6',
-    900: '#4C1D95',
+  royalBlue: {
+    50: '#F0F4FF',
+    100: '#DBE5FF',
+    200: '#BFD0FF',
+    300: '#99B5FF',
+    400: '#6690FF',
+    500: '#4169E1', // Primary Royal Blue
+    600: '#3454D1', // Primary Dark Royal Blue
+    700: '#283FC2',
+    800: '#1D2EB2',
+    900: '#121CA3',
   },
   violet: {
     500: '#8B5CF6',
@@ -54,16 +54,16 @@ export const palette = {
 };
 
 export const lightTheme = {
-  primary: palette.indigo[500],
-  primaryLight: palette.indigo[100],
-  primaryDark: palette.indigo[700],
+  primary: palette.royalBlue[500],
+  primaryLight: palette.royalBlue[100],
+  primaryDark: palette.royalBlue[700],
   secondary: palette.violet[500],
   accent: palette.amber[500],
   
   success: palette.emerald[500],
   warning: palette.amber[500],
   error: palette.rose[500],
-  info: palette.indigo[400],
+  info: palette.royalBlue[400],
   
   background: '#FFFFFF',
   surface: palette.slate[50],
@@ -76,23 +76,23 @@ export const lightTheme = {
   textTertiary: palette.slate[400],
   textInverse: '#FFFFFF',
   textDisabled: palette.slate[300],
-
+ 
   statusSuccessful: palette.emerald[500],
   statusPending: palette.amber[500],
   statusFailed: palette.rose[500],
 };
 
 export const darkTheme: typeof lightTheme = {
-  primary: palette.indigo[400],
-  primaryLight: palette.indigo[900] + '40', // 25% opacity
-  primaryDark: palette.indigo[300],
+  primary: palette.royalBlue[400],
+  primaryLight: palette.royalBlue[900] + '40', // 25% opacity
+  primaryDark: palette.royalBlue[300],
   secondary: palette.violet[500],
   accent: palette.amber[400],
   
   success: palette.emerald[400],
   warning: palette.amber[400],
   error: palette.rose[400],
-  info: palette.indigo[300],
+  info: palette.royalBlue[300],
   
   background: '#121212',
   surface: '#1E1E1E',

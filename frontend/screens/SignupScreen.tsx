@@ -99,7 +99,7 @@ const SignupScreen: React.FC = () => {
   return (
     <AuthLayout 
       title="Create Account" 
-      subtitle="Join Eesher Data and start managing your finances better."
+      subtitle="Join Saadawa and start managing your finances better."
       scroll
     >
       <View style={styles.form}>

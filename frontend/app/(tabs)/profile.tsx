@@ -200,7 +200,7 @@ export default function ProfileScreen() {
         />
         <MenuItem 
             icon={Info} 
-            label="About Eesher Data" 
+            label="About Saadawa" 
             onPress={() => router.push('/about' as any)} 
         />
       </View>

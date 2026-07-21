@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Eesher Data",
-    "slug": "eesher-data",
+    "name": "Saadawa",
+    "slug": "saadawa-data-sub",
     "owner": "devahmad",
     "version": "1.0.1",
     "orientation": "portrait",
@@ -11,10 +11,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.icodearewa.eeshert"
+      "bundleIdentifier": "com.icodearewa.saadawa"
     },
     "android": {
-      "package": "com.icodearewa.eeshert",
+      "package": "com.icodearewa.saadawa",
       "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#F5F3FF",

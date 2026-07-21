@@ -368,7 +368,7 @@ export default function HomeScreen() {
 
         <View style={styles.promoSection}>
           <LinearGradient
-            colors={['#5B6AF0', '#7C3AED']}
+            colors={['#4169E1', '#283FC2']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.promoCard}
@@ -386,7 +386,7 @@ export default function HomeScreen() {
                 onPress={() => {}}
                 style={styles.promoButton}
              >
-                <Text bold style={{ color: '#5B6AF0', fontWeight: '700' }}>Share</Text>
+                <Text bold style={{ color: '#4169E1', fontWeight: '700' }}>Share</Text>
              </TouchableOpacity>
           </LinearGradient>
         </View>

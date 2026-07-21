@@ -232,7 +232,7 @@ export default function AddMoneyScreen() {
   };
 
   const copyAllCardDetails = async (acc: NormalizedAccount, index: number) => {
-    const text = `Eesher Data Wallet Funding:\nBank Name: ${acc.bank_name}\nAccount Number: ${acc.account_number}\nAccount Name: ${acc.account_name}`;
+    const text = `Saadawa Wallet Funding:\nBank Name: ${acc.bank_name}\nAccount Number: ${acc.account_number}\nAccount Name: ${acc.account_name}`;
     await Clipboard.setStringAsync(text);
     
     if (Platform.OS !== 'web') {
