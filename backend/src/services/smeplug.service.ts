@@ -12,8 +12,8 @@ interface SMEPlugDataPurchase {
 class SMEPlugService {
   private api: AxiosInstance | null = null;
 
-  private getNetworkId(network: string | number): number {
-    const net = String(network).toLowerCase();
+  public getNetworkId(network: string | number): number {
+    const net = String(network).trim().toLowerCase();
 
     // Map App IDs (from normalizeNetwork) to SME Plug IDs
     // App: 1=MTN, 2=Airtel, 3=Glo, 4=9mobile

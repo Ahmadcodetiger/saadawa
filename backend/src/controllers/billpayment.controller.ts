@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 import AirtimePlan from '../models/airtime_plan.model.js';
 import { Transaction, User } from '../models/index.js';
 import { Plan } from '../models/plan.model.js';
+import ProviderConfig from '../models/provider.model.js';
 import providerRegistry from '../services/providerRegistry.service.js';
 import smeplugService from '../services/smeplug.service.js';
 import topupmateService from '../services/topupmate.service.js';
@@ -143,6 +144,53 @@ export class BillPaymentController {
   // =====================================================
   // PURCHASE AIRTIME - USING TOPUPMATE
   // =====================================================
+  // Helper to verify provider response & HTTP errors
+  private verifyProviderResponse(result: any, error?: any): { isSuccess: boolean; isFailed: boolean; isUncertain: boolean; message: string } {
+    if (error) {
+      const httpStatus = error.response?.status;
+      const isTimeout = error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || error.message?.toLowerCase().includes('timeout');
+      if (httpStatus && httpStatus >= 400) {
+        const msg = error.response?.data?.message || error.response?.data?.msg || error.response?.data?.errors?.[0] || error.message || 'Provider API error';
+        return { isSuccess: false, isFailed: true, isUncertain: false, message: msg };
+      }
+      if (isTimeout || !httpStatus) {
+        return { isSuccess: false, isFailed: false, isUncertain: true, message: 'Provider status could not be verified. Will be auto-reconciled.' };
+      }
+    }
+
+    if (!result) {
+      return { isSuccess: false, isFailed: false, isUncertain: true, message: 'Provider status could not be verified. Will be auto-reconciled.' };
+    }
+
+    const isSuccess = 
+      result.status === 'success' || 
+      result.status === true || 
+      result.status === 'true' ||
+      result.code === '000' ||
+      result.success === true;
+
+    if (isSuccess) {
+      return { isSuccess: true, isFailed: false, isUncertain: false, message: 'Success' };
+    }
+
+    const isExplicitFail = 
+      result.status === 'failed' || 
+      result.status === 'fail' || 
+      result.status === 'error' || 
+      result.status === false || 
+      result.success === false;
+
+    if (isExplicitFail) {
+      const msg = result.msg || result.message || result.error || 'Provider rejected purchase request';
+      return { isSuccess: false, isFailed: true, isUncertain: false, message: msg };
+    }
+
+    return { isSuccess: false, isFailed: false, isUncertain: true, message: result.msg || result.message || 'Provider status could not be verified. Will be auto-reconciled.' };
+  }
+
+  // =====================================================
+  // PURCHASE AIRTIME - USING TOPUPMATE / SMEPLUG
+  // =====================================================
   async purchaseAirtime(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { network, phone, amount, airtime_type = 'VTU', ported_number = true, pin } = req.body;
@@ -175,9 +223,6 @@ export class BillPaymentController {
       if (!providerId) {
         return ApiResponse.error(res, 'Invalid network. Must be: mtn, airtel, glo, or 9mobile', 400);
       }
-
-      // Get TopupMate network name
-      const topupmateNetworkId = getNetworkName(providerId).toLowerCase();
 
       // Calculate discount
       const airtimePlan = await AirtimePlan.findOne({ providerId, type: 'AIRTIME', active: true });
@@ -238,6 +283,9 @@ export class BillPaymentController {
         gateway: selected?.code || 'smeplug',
       });
 
+      let result: any;
+      let providerErr: any = null;
+
       try {
         console.log(`📱 Purchasing airtime via ${selected?.code || 'smeplug'}:`, {
           network: String(providerId),
@@ -247,7 +295,7 @@ export class BillPaymentController {
           airtime_type,
         });
 
-        const result = await client.purchaseAirtime!({
+        result = await client.purchaseAirtime!({
           network: String(providerId),
           phone: String(phone),
           ref,
@@ -255,50 +303,47 @@ export class BillPaymentController {
           ported_number,
           amount: String(amount),
         });
+      } catch (err: any) {
+        providerErr = err;
+      }
 
-        console.log('📱 TopupMate airtime response:', JSON.stringify(result, null, 2));
+      const verification = this.verifyProviderResponse(result, providerErr);
 
-        // Check for success - TopupMate returns various formats
-        const isSuccess = 
-          (result.status as any) === 'success' || 
-          (result.status as any) === true || 
-          (result.status as any) === 'true' ||
-          result.code === '000' ||
-          result.success === true;
-
-        if (isSuccess) {
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'successful',
-            updated_at: new Date()
-          });
-          const updatedWallet = await WalletService.getWalletByUserId(userId);
-          return ApiResponse.success(res, 'Airtime purchase successful', {
-            transaction,
-            balance: updatedWallet?.balance,
-            provider_response: result,
-          });
-        } else {
-          // Refund user if failed
-          await WalletService.credit(userId, finalAmount, 'Airtime purchase refund');
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'failed',
-            error_message: result.msg || result.message || 'Unknown error',
-            updated_at: new Date()
-          });
-          console.error('❌ Airtime purchase failed - TopupMate Response:', JSON.stringify(result, null, 2));
-          return ApiResponse.error(res, `Airtime purchase failed: ${result.msg || result.message || 'Unknown error'}`, 400);
-        }
-      } catch (error: any) {
-        // Refund user on error
+      if (verification.isSuccess) {
+        await Transaction.findByIdAndUpdate(transaction._id, {
+          status: 'successful',
+          updated_at: new Date()
+        });
+        const updatedWallet = await WalletService.getWalletByUserId(userId);
+        return ApiResponse.success(res, 'Airtime purchase successful', {
+          transaction,
+          balance: updatedWallet?.balance,
+          provider_response: result,
+        });
+      } else if (verification.isUncertain) {
+        await Transaction.findByIdAndUpdate(transaction._id, {
+          status: 'pending',
+          error_message: 'Provider status could not be verified. Will be auto-reconciled.',
+          updated_at: new Date()
+        });
+        return res.status(202).json({
+          success: true,
+          message: 'Transaction is being processed. Please check your transaction history shortly.',
+          data: { transaction, reference: ref }
+        });
+      } else {
+        // Refund user if failed
         await WalletService.credit(userId, finalAmount, 'Airtime purchase refund');
         await Transaction.findByIdAndUpdate(transaction._id, {
           status: 'failed',
-          error_message: error.message,
+          error_message: verification.message,
           updated_at: new Date()
         });
-        console.error('❌ Airtime purchase error:', error.message, error.response?.data);
-        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Airtime purchase failed';
-        return ApiResponse.error(res, errMsg, 400);
+        console.error('❌ Airtime purchase failed:', verification.message);
+        return ApiResponse.error(res, `Airtime purchase failed: ${verification.message}`, 400, {
+          reference: ref,
+          transaction
+        });
       }
     } catch (error) {
       next(error);
@@ -306,7 +351,7 @@ export class BillPaymentController {
   }
 
   // =====================================================
-  // PURCHASE DATA - STILL USING SMEPLUG (since it works)
+  // PURCHASE DATA - WITH FAILOVER & PLAN MAPPINGS
   // =====================================================
   async purchaseData(req: AuthRequest, res: Response, next: NextFunction) {
     try {
@@ -349,11 +394,9 @@ export class BillPaymentController {
       }
 
       if (dbPlan) {
-        // Legacy DB plan
         amount = Number(dbPlan.price);
         planExternalId = String(dbPlan.externalPlanId || dbPlan.code || plan);
       } else {
-        // Live provider plan — fetch price from live API
         try {
           const selected = await providerRegistry.getPreferredProviderFor('data');
           const client = selected?.client || smeplugService;
@@ -361,13 +404,11 @@ export class BillPaymentController {
             const result = await client.getDataPlans();
             let livePlan: any = null;
             if (result?.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
-              // SMEPlug format: { data: { "1": [...], "2": [...] } }
               for (const netPlans of Object.values(result.data)) {
                 livePlan = (netPlans as any[]).find((p: any) => String(p.id) === String(plan));
                 if (livePlan) break;
               }
             } else if (result?.response && Array.isArray(result.response)) {
-              // Topupmate format: { status: "success", response: [...] }
               livePlan = result.response.find((p: any) => String(p.id) === String(plan));
             } else if (Array.isArray(result)) {
               livePlan = result.find((p: any) => String(p.id) === String(plan));
@@ -376,7 +417,7 @@ export class BillPaymentController {
               return ApiResponse.error(res, 'Invalid plan selected', 400);
             }
             amount = Number(livePlan.price || 0);
-            planExternalId = String(plan); // Live plan ID passed directly
+            planExternalId = String(plan);
           } else {
             return ApiResponse.error(res, 'Data plans not available from provider', 503);
           }
@@ -413,20 +454,18 @@ export class BillPaymentController {
         return ApiResponse.error(res, 'Insufficient wallet balance', 400);
       }
 
-      // Resolve active provider for data
-      const selected = await providerRegistry.getPreferredProviderFor('data');
-      const client = selected?.client || smeplugService;
+      // Resolve active providers for data failover
+      const activeConfigs = await ProviderConfig.find({ active: true, supported_services: { $in: ['data'] } }).sort({ priority: 1 });
+      const candidateCodes = activeConfigs.length > 0
+        ? activeConfigs.map(c => c.code)
+        : ['smeplug', 'topupmate', 'vtpass'];
 
-      // Generate reference
-      const ref = (client as any).generateReference ? (client as any).generateReference('DATA') : smeplugService.generateReference('DATA');
+      const firstClient = providerRegistry.getClient(candidateCodes[0]) || smeplugService;
+      const ref = (firstClient as any).generateReference ? (firstClient as any).generateReference('DATA') : smeplugService.generateReference('DATA');
 
-      // Get wallet for wallet_id
       const walletData = await WalletService.getWalletByUserId(userId);
-
-      // Deduct from wallet
       await WalletService.debit(userId, finalAmount, 'Data purchase');
 
-      // Create transaction record
       const transaction = await Transaction.create({
         user_id: userId,
         wallet_id: walletData._id,
@@ -438,58 +477,119 @@ export class BillPaymentController {
         status: 'pending',
         destination_account: phone,
         description: `Data purchase - ${network.toUpperCase()} - ${phone}`,
-        gateway: selected?.code || 'smeplug',
-        ...(dbPlan ? { plan_id: dbPlan._id } : { metadata: { plan_external_id: planExternalId, provider: selected?.code || 'smeplug' } }),
+        gateway: candidateCodes[0] || 'smeplug',
+        ...(dbPlan ? { plan_id: dbPlan._id } : { metadata: { plan_external_id: planExternalId, provider: candidateCodes[0] || 'smeplug' } }),
       });
 
-      try {
-        let result: any;
+      let successfulProvider = '';
+      let providerResult: any = null;
+      let isUncertainState = false;
+      let lastErrorMsg = 'Data purchase failed across available providers';
 
-        if (client?.purchaseData) {
-          result = await client.purchaseData({
+      for (const providerCode of candidateCodes) {
+        const client = providerRegistry.getClient(providerCode);
+        if (!client || !client.purchaseData) {
+          console.warn(`[Failover] Skipping provider ${providerCode}: Client not found or does not support purchaseData`);
+          continue;
+        }
+
+        let providerPlanId: string | number | undefined;
+        if (dbPlan) {
+          const customCode = dbPlan.provider_codes?.[providerCode] || (dbPlan.provider_codes?.get ? dbPlan.provider_codes.get(providerCode) : undefined);
+          if (customCode) {
+            providerPlanId = customCode;
+          } else if (dbPlan.gateway === providerCode || (!dbPlan.gateway && providerCode === 'smeplug')) {
+            providerPlanId = dbPlan.externalPlanId || dbPlan.code || planExternalId;
+          } else {
+            console.warn(`[Failover] Skipping provider ${providerCode}: No plan ID mapping for plan ${dbPlan._id}`);
+            continue;
+          }
+        } else {
+          providerPlanId = planExternalId;
+        }
+
+        let resPayload: any = null;
+        let pErr: any = null;
+
+        try {
+          console.log(`📱 Attempting data purchase via ${providerCode}:`, {
+            network: String(providerId),
+            phone: String(phone),
+            plan: providerPlanId,
+            ref,
+          });
+
+          resPayload = await client.purchaseData({
             network: String(providerId),
             phone: String(phone),
             ref,
-            plan: planExternalId,
+            plan: String(providerPlanId),
             ported_number,
           });
-        } else {
-          throw new Error('Provider does not support data purchase');
+        } catch (err: any) {
+          pErr = err;
         }
 
-        // Update transaction status
-        if (result.status === 'success' || result.status === true || result.status === 'true') {
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'successful',
-            updated_at: new Date()
-          });
-          const updatedWallet = await WalletService.getWalletByUserId(userId);
-          return ApiResponse.success(res, 'Data purchase successful', {
-            transaction,
-            balance: updatedWallet?.balance,
-            provider_response: result,
-          });
+        const verification = this.verifyProviderResponse(resPayload, pErr);
+
+        if (verification.isSuccess) {
+          successfulProvider = providerCode;
+          providerResult = resPayload;
+          break;
+        } else if (verification.isUncertain) {
+          successfulProvider = providerCode;
+          providerResult = resPayload;
+          isUncertainState = true;
+          break;
         } else {
-          // Refund user if failed
-          await WalletService.credit(userId, amount, 'Data purchase refund');
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'failed',
-            error_message: result.msg || 'Unknown error',
-            updated_at: new Date()
-          });
-          return ApiResponse.error(res, 'Data purchase failed', 400);
+          console.warn(`⚠️ Provider ${providerCode} failed data purchase: ${verification.message}`);
+          lastErrorMsg = verification.message;
         }
-      } catch (error: any) {
-        // Refund user on error
-        await WalletService.credit(userId, amount, 'Data purchase refund');
+      }
+
+      if (isUncertainState) {
         await Transaction.findByIdAndUpdate(transaction._id, {
-          status: 'failed',
-          error_message: error.message,
+          status: 'pending',
+          gateway: successfulProvider,
+          error_message: 'Provider status could not be verified. Will be auto-reconciled.',
           updated_at: new Date()
         });
-        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Data purchase failed';
-        return ApiResponse.error(res, errMsg, 400);
+        return res.status(202).json({
+          success: true,
+          message: 'Transaction is being processed. Please check your transaction history shortly.',
+          data: {
+            transaction,
+            reference: ref
+          }
+        });
       }
+
+      if (successfulProvider) {
+        await Transaction.findByIdAndUpdate(transaction._id, {
+          status: 'successful',
+          gateway: successfulProvider,
+          updated_at: new Date()
+        });
+        const updatedWallet = await WalletService.getWalletByUserId(userId);
+        return ApiResponse.success(res, 'Data purchase successful', {
+          transaction,
+          balance: updatedWallet?.balance,
+          provider_response: providerResult,
+        });
+      }
+
+      // All candidate providers failed
+      await WalletService.credit(userId, amount, 'Data purchase refund');
+      await Transaction.findByIdAndUpdate(transaction._id, {
+        status: 'failed',
+        error_message: lastErrorMsg,
+        updated_at: new Date()
+      });
+
+      return ApiResponse.error(res, `Data purchase failed: ${lastErrorMsg}`, 400, {
+        reference: ref,
+        transaction
+      });
     } catch (error) {
       next(error);
     }
@@ -563,45 +663,54 @@ export class BillPaymentController {
         metadata: { provider, iucnumber, plan: selectedPlan, subtype },
       });
 
+      let result: any = null;
+      let pErr: any = null;
+
       try {
         const selected = await providerRegistry.getPreferredProviderFor('cable');
         const client = selected?.client || topupmateService;
-        const result = await (client.purchaseCableTV
+        result = await (client.purchaseCableTV
           ? client.purchaseCableTV({ provider, iucnumber, plan, ref, subtype, phone })
           : topupmateService.purchaseCableTV({ provider, iucnumber, plan, ref, subtype, phone }));
-
-        // Update transaction status
-        if (result.status === 'success' || result.status === true || result.status === 'true') {
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'successful',
-            updated_at: new Date()
-          });
-          const updatedWallet = await WalletService.getWalletByUserId(userId);
-          return ApiResponse.success(res, 'Cable TV purchase successful', {
-            transaction,
-            balance: updatedWallet?.balance,
-            provider_response: result,
-          });
-        } else {
-          // Refund user if failed
-          await WalletService.credit(userId, amount, 'Cable TV purchase refund');
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'failed',
-            error_message: result.msg || 'Unknown error',
-            updated_at: new Date()
-          });
-          return ApiResponse.error(res, 'Cable TV purchase failed', 400);
-        }
       } catch (error: any) {
-        // Refund user on error
+        pErr = error;
+      }
+
+      const verification = this.verifyProviderResponse(result, pErr);
+
+      if (verification.isSuccess) {
+        await Transaction.findByIdAndUpdate(transaction._id, {
+          status: 'successful',
+          updated_at: new Date()
+        });
+        const updatedWallet = await WalletService.getWalletByUserId(userId);
+        return ApiResponse.success(res, 'Cable TV purchase successful', {
+          transaction,
+          balance: updatedWallet?.balance,
+          provider_response: result,
+        });
+      } else if (verification.isUncertain) {
+        await Transaction.findByIdAndUpdate(transaction._id, {
+          status: 'pending',
+          error_message: 'Provider status could not be verified. Will be auto-reconciled.',
+          updated_at: new Date()
+        });
+        return res.status(202).json({
+          success: true,
+          message: 'Transaction is being processed. Please check your transaction history shortly.',
+          data: { transaction, reference: ref }
+        });
+      } else {
         await WalletService.credit(userId, amount, 'Cable TV purchase refund');
         await Transaction.findByIdAndUpdate(transaction._id, {
           status: 'failed',
-          error_message: error.message,
+          error_message: verification.message,
           updated_at: new Date()
         });
-        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Cable TV purchase failed';
-        return ApiResponse.error(res, errMsg, 400);
+        return ApiResponse.error(res, `Cable TV purchase failed: ${verification.message}`, 400, {
+          reference: ref,
+          transaction
+        });
       }
     } catch (error) {
       next(error);
@@ -666,46 +775,55 @@ export class BillPaymentController {
         metadata: { provider, meternumber, metertype },
       });
 
+      let result: any = null;
+      let pErr: any = null;
+
       try {
         const selected = await providerRegistry.getPreferredProviderFor('electricity');
         const client = selected?.client || topupmateService;
-        const result = await (client.purchaseElectricity
+        result = await (client.purchaseElectricity
           ? client.purchaseElectricity({ provider, meternumber, amount, metertype, phone, ref })
           : topupmateService.purchaseElectricity({ provider, meternumber, amount, metertype, phone, ref }));
-
-        // Update transaction status
-        if (result.status === 'success' || result.status === true || result.status === 'true') {
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'successful',
-            updated_at: new Date()
-          });
-          const updatedWallet = await WalletService.getWalletByUserId(userId);
-          return ApiResponse.success(res, 'Electricity purchase successful', {
-            transaction,
-            balance: updatedWallet?.balance,
-            token: result.token,
-            provider_response: result,
-          });
-        } else {
-          // Refund user if failed
-          await WalletService.credit(userId, parseFloat(amount), 'Electricity purchase refund');
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'failed',
-            error_message: result.msg || 'Unknown error',
-            updated_at: new Date()
-          });
-          return ApiResponse.error(res, 'Electricity purchase failed', 400);
-        }
       } catch (error: any) {
-        // Refund user on error
+        pErr = error;
+      }
+
+      const verification = this.verifyProviderResponse(result, pErr);
+
+      if (verification.isSuccess) {
+        await Transaction.findByIdAndUpdate(transaction._id, {
+          status: 'successful',
+          updated_at: new Date()
+        });
+        const updatedWallet = await WalletService.getWalletByUserId(userId);
+        return ApiResponse.success(res, 'Electricity purchase successful', {
+          transaction,
+          balance: updatedWallet?.balance,
+          token: result?.token,
+          provider_response: result,
+        });
+      } else if (verification.isUncertain) {
+        await Transaction.findByIdAndUpdate(transaction._id, {
+          status: 'pending',
+          error_message: 'Provider status could not be verified. Will be auto-reconciled.',
+          updated_at: new Date()
+        });
+        return res.status(202).json({
+          success: true,
+          message: 'Transaction is being processed. Please check your transaction history shortly.',
+          data: { transaction, reference: ref }
+        });
+      } else {
         await WalletService.credit(userId, parseFloat(amount), 'Electricity purchase refund');
         await Transaction.findByIdAndUpdate(transaction._id, {
           status: 'failed',
-          error_message: error.message,
+          error_message: verification.message,
           updated_at: new Date()
         });
-        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Electricity purchase failed';
-        return ApiResponse.error(res, errMsg, 400);
+        return ApiResponse.error(res, `Electricity purchase failed: ${verification.message}`, 400, {
+          reference: ref,
+          transaction
+        });
       }
     } catch (error) {
       next(error);
@@ -757,46 +875,55 @@ export class BillPaymentController {
         metadata: { provider: selectedProvider, quantity },
       });
 
+      let result: any = null;
+      let pErr: any = null;
+
       try {
         const selected = await providerRegistry.getPreferredProviderFor('exampin');
         const client = selected?.client || topupmateService;
-        const result = await (client.purchaseExamPin
+        result = await (client.purchaseExamPin
           ? client.purchaseExamPin({ provider, quantity, ref })
           : topupmateService.purchaseExamPin({ provider, quantity, ref }));
-
-        // Update transaction status
-        if (result.status === 'success' || result.status === true || result.status === 'true') {
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'successful',
-            updated_at: new Date()
-          });
-          const updatedWallet = await WalletService.getWalletByUserId(userId);
-          return ApiResponse.success(res, 'Exam pin purchase successful', {
-            transaction,
-            balance: updatedWallet?.balance,
-            pins: result.pins || result.pin,
-            provider_response: result,
-          });
-        } else {
-          // Refund user if failed
-          await WalletService.credit(userId, amount, 'Exam pin purchase refund');
-          await Transaction.findByIdAndUpdate(transaction._id, {
-            status: 'failed',
-            error_message: result.msg || 'Unknown error',
-            updated_at: new Date()
-          });
-          return ApiResponse.error(res, 'Exam pin purchase failed', 400);
-        }
       } catch (error: any) {
-        // Refund user on error
+        pErr = error;
+      }
+
+      const verification = this.verifyProviderResponse(result, pErr);
+
+      if (verification.isSuccess) {
+        await Transaction.findByIdAndUpdate(transaction._id, {
+          status: 'successful',
+          updated_at: new Date()
+        });
+        const updatedWallet = await WalletService.getWalletByUserId(userId);
+        return ApiResponse.success(res, 'Exam pin purchase successful', {
+          transaction,
+          balance: updatedWallet?.balance,
+          pins: result?.pins || result?.pin,
+          provider_response: result,
+        });
+      } else if (verification.isUncertain) {
+        await Transaction.findByIdAndUpdate(transaction._id, {
+          status: 'pending',
+          error_message: 'Provider status could not be verified. Will be auto-reconciled.',
+          updated_at: new Date()
+        });
+        return res.status(202).json({
+          success: true,
+          message: 'Transaction is being processed. Please check your transaction history shortly.',
+          data: { transaction, reference: ref }
+        });
+      } else {
         await WalletService.credit(userId, amount, 'Exam pin purchase refund');
         await Transaction.findByIdAndUpdate(transaction._id, {
           status: 'failed',
-          error_message: error.message,
+          error_message: verification.message,
           updated_at: new Date()
         });
-        const errMsg = error.response?.data?.message || error.response?.data?.msg || error.message || 'Exam pin purchase failed';
-        return ApiResponse.error(res, errMsg, 400);
+        return ApiResponse.error(res, `Exam pin purchase failed: ${verification.message}`, 400, {
+          reference: ref,
+          transaction
+        });
       }
     } catch (error) {
       next(error);

@@ -11,6 +11,7 @@ export interface IAirtimePlan extends Document {
   discount?: number; // discount percentage
   api_discount?: number; // discount percentage for API users
   meta?: Record<string, any>;
+  provider_codes?: Record<string, string | number>;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +29,7 @@ const AirtimePlanSchema = new Schema<IAirtimePlan>(
     discount: { type: Number, default: 0 },
     api_discount: { type: Number, default: 0 },
     meta: { type: Schema.Types.Mixed },
+    provider_codes: { type: Schema.Types.Mixed },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }

@@ -207,12 +207,14 @@ export default function BuyAirtimeScreen() {
       }
     } catch (error: any) {
       // FIX: Better error extraction from API errors
+      const ref = error?.errors?.reference || error?.reference || error?.data?.reference || error?.errors?.transaction?.reference_number;
+      const refMsg = ref ? ` (Ref: ${ref})` : '';
       const errorMsg =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
         error?.message ||
         'Failed to purchase airtime. Please try again.';
-      showError(errorMsg);
+      showError(errorMsg + refMsg);
     } finally {
       setIsLoading(false);
     }

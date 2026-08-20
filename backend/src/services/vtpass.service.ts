@@ -52,15 +52,26 @@ class VTpassService {
     return res.data;
   }
 
+  public getNetworkId(network: string | number): string {
+    const net = String(network).trim().toLowerCase();
+    if (net === '1' || net === 'mtn') return 'mtn';
+    if (net === '2' || net === 'airtel') return 'airtel';
+    if (net === '3' || net === 'glo' || net === 'globacom') return 'glo';
+    if (net === '4' || net === '9mobile' || net === 'etisalat') return '9mobile';
+    return net;
+  }
+
   async purchaseAirtime(data: any) {
     const api = await this.ensureClient();
-    const res = await api.post('/pay', { serviceID: 'airtime', ...data });
+    const network = this.getNetworkId(data.network);
+    const res = await api.post('/pay', { serviceID: 'airtime', ...data, network });
     return res.data;
   }
 
   async purchaseData(data: any) {
     const api = await this.ensureClient();
-    const res = await api.post('/pay', { serviceID: 'data', ...data });
+    const network = this.getNetworkId(data.network);
+    const res = await api.post('/pay', { serviceID: 'data', ...data, network });
     return res.data;
   }
 

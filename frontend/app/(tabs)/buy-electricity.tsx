@@ -131,7 +131,9 @@ export default function BuyElectricityScreen() {
         showError(response.message || 'Purchase failed');
       }
     } catch (error: any) {
-      showError(error.message || 'Electricity purchase failed. Please try again.');
+      const ref = error?.errors?.reference || error?.reference || error?.data?.reference || error?.errors?.transaction?.reference_number;
+      const refMsg = ref ? ` (Ref: ${ref})` : '';
+      showError((error.message || 'Electricity purchase failed. Please try again.') + refMsg);
     } finally {
       setIsLoading(false);
     }

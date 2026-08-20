@@ -113,7 +113,9 @@ export default function BuyExamPinScreen() {
         showError(response.message || 'Exam PIN purchase failed');
       }
     } catch (error: any) {
-      showError(error.message || 'Exam PIN purchase failed. Please try again.');
+      const ref = error?.errors?.reference || error?.reference || error?.data?.reference || error?.errors?.transaction?.reference_number;
+      const refMsg = ref ? ` (Ref: ${ref})` : '';
+      showError((error.message || 'Exam PIN purchase failed. Please try again.') + refMsg);
     } finally {
       setIsLoading(false);
     }

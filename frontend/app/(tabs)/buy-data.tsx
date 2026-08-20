@@ -155,7 +155,9 @@ export default function BuyDataScreen() {
         showError(response.message || 'Failed to purchase data');
       }
     } catch (error: any) {
-      showError(error.message || 'Failed to purchase data. Please try again.');
+      const ref = error?.errors?.reference || error?.reference || error?.data?.reference || error?.errors?.transaction?.reference_number;
+      const refMsg = ref ? ` (Ref: ${ref})` : '';
+      showError((error.message || 'Failed to purchase data. Please try again.') + refMsg);
     } finally {
       setIsLoading(false);
     }

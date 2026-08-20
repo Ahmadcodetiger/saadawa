@@ -97,18 +97,15 @@ export default function TransactionDetailsModal({
         </View>
     );
 
+    const isFailedStatus = (st: string) => ['failed', 'refunded', 'reversed'].includes((st || '').toLowerCase());
+    const isSuccessStatus = (st: string) => ['successful', 'completed', 'success'].includes((st || '').toLowerCase());
+
     const getStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'successful':
-            case 'completed':
-                return '#10B981';
-            case 'failed':
-                return '#EF4444';
-            case 'pending':
-                return '#FF9F43';
-            default:
-                return textBodyColor;
-        }
+        const lower = (status || '').toLowerCase();
+        if (isSuccessStatus(lower)) return '#10B981';
+        if (isFailedStatus(lower)) return '#EF4444';
+        if (lower === 'pending') return '#FF9F43';
+        return textBodyColor;
     };
 
     return (
@@ -170,8 +167,8 @@ export default function TransactionDetailsModal({
                                 >
                                     <Ionicons
                                         name={
-                                            tx.status === 'successful' ? 'checkmark-circle' :
-                                                tx.status === 'failed' ? 'close-circle' :
+                                            isSuccessStatus(tx.status) ? 'checkmark-circle' :
+                                                isFailedStatus(tx.status) ? 'close-circle' :
                                                     'time'
                                         }
                                         size={24}

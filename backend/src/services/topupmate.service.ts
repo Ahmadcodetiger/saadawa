@@ -125,6 +125,29 @@ class TopupmateService {
     return this.getServiceData('recharge-card');
   }
 
+  public getNetworkId(network: string | number): number {
+    const net = String(network).trim().toLowerCase();
+
+    // Map App IDs (1=MTN, 2=Airtel, 3=Glo, 4=9mobile) to Topupmate / VTU Engine IDs
+    // Topupmate / VTU Engine: 1=MTN, 2=Glo, 3=9mobile, 4=Airtel
+    if (net === '1') return 1; // MTN (App 1 -> Topupmate 1)
+    if (net === '2') return 4; // Airtel (App 2 -> Topupmate 4)
+    if (net === '3') return 2; // Glo (App 3 -> Topupmate 2)
+    if (net === '4') return 3; // 9mobile (App 4 -> Topupmate 3)
+
+    const map: Record<string, number> = {
+      'mtn': 1,
+      'glo': 2,
+      'globacom': 2,
+      '9mobile': 3,
+      'etisalat': 3,
+      'airtel': 4,
+    };
+    const id = map[net];
+    if (!id) throw new Error(`Unsupported network: ${network}`);
+    return id;
+  }
+
   // Verify account balance (for checking if service is available)
   async checkServiceStatus(service: string): Promise<boolean> {
     try {
@@ -137,39 +160,47 @@ class TopupmateService {
 
   // Purchase airtime
   async purchaseAirtime(data: {
-    network: string;
+    network: string | number;
     phone: string;
     ref: string;
-    airtime_type: string;
-    ported_number: boolean;
-    amount: string;
+    airtime_type?: string;
+    ported_number?: boolean;
+    amount: string | number;
   }): Promise<TopupmateResponse> {
     try {
       const api = await this.ensureClient();
-      const response = await api.post('/airtime/', data);
+      const payload = {
+        ...data,
+        network: String(this.getNetworkId(data.network)),
+      };
+      const response = await api.post('/airtime/', payload);
       return response.data;
     } catch (error: any) {
       logger.error('Error purchasing airtime:', error.message, error.response?.data);
-      const msg = error.response?.data?.msg || error.message;
+      const msg = error.response?.data?.msg || error.response?.data?.message || error.message;
       throw new Error(`Airtime purchase failed: ${msg}`);
     }
   }
 
   // Purchase data
   async purchaseData(data: {
-    network: string;
+    network: string | number;
     phone: string;
     ref: string;
     plan: string;
-    ported_number: boolean;
+    ported_number?: boolean;
   }): Promise<TopupmateResponse> {
     try {
       const api = await this.ensureClient();
-      const response = await api.post('/data/', data);
+      const payload = {
+        ...data,
+        network: String(this.getNetworkId(data.network)),
+      };
+      const response = await api.post('/data/', payload);
       return response.data;
     } catch (error: any) {
       logger.error('Error purchasing data:', error.message, error.response?.data);
-      const msg = error.response?.data?.msg || error.message;
+      const msg = error.response?.data?.msg || error.response?.data?.message || error.message;
       throw new Error(`Data purchase failed: ${msg}`);
     }
   }

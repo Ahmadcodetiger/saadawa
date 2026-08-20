@@ -24,7 +24,7 @@ interface TransactionRowProps {
   title: string;
   subtitle: string;
   amount: number;
-  status: 'successful' | 'pending' | 'failed';
+  status: string;
   onPress?: () => void;
 }
 
@@ -53,6 +53,9 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
   };
 
   const isCredit = type === 'wallet_topup';
+  const lowerStatus = (status || '').toLowerCase();
+  const isSuccess = ['successful', 'completed', 'success'].includes(lowerStatus);
+  const isPending = lowerStatus === 'pending';
 
   return (
     <TouchableOpacity 
@@ -84,7 +87,7 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
           </Text>
           <Badge 
             label={status} 
-            variant={status === 'successful' ? 'success' : status === 'pending' ? 'warning' : 'error'} 
+            variant={isSuccess ? 'success' : isPending ? 'warning' : 'error'} 
           />
         </View>
       </View>

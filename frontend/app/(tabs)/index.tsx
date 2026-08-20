@@ -407,7 +407,7 @@ export default function HomeScreen() {
                    title={t.type.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}
                    subtitle={`${formatDate(t.created_at)} • Ref: ${t.reference_number.slice(-6)}`}
                    amount={t.amount}
-                   status={['success', 'successful'].includes(t.status as string) ? 'successful' : t.status === 'failed' ? 'failed' : 'pending'}
+                   status={['success', 'successful', 'completed'].includes((t.status as string)?.toLowerCase()) ? 'successful' : ['failed', 'refunded', 'reversed'].includes((t.status as string)?.toLowerCase()) ? 'failed' : 'pending'}
                 />
              ))
            ) : (
